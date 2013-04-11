@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang=en>
+<head>
+    <meta charset=utf-8>
+    <title>{% block windowtitle %}{{ SITENAME }}{% endblock %}</title>
+    <meta name=author content="{{ AUTHOR }}">
+
+    <link href="{{ SITEURL }}/theme/local.css" rel=stylesheet>
+    <link href="{{ SITEURL }}/theme/pygments.css" rel=stylesheet>
+
+<body>
+
+<header class=top>
+    <a class=brand href="{{ SITEURL }}">{{ SITENAME }}</a>
+    <div style=float:right>
+        {% for name, loc in MENUITEMS %}
+        <a href="{{ SITEURL }}/{{ loc }}">{{ name }}</a>
+        {% endfor %}
+    </div>
+</header>
+
+<section>
+    <article>
+        {% block content %}{% endblock %}
+    </article>
+    <footer>
+        <br>
+        <p><a href="{{ SITEURL }}">{{ SITENAME }}</a> &copy; {{ AUTHOR }} 2013
+        </p>
+    </footer>
+</section>
+
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+{% include "analytics.html" %}

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block content_title %}{% endblock %}
+
+{% block content %}
+
+    <h1>Labs</h1>
+
+    <table>
+        {% for name, link, desc in LABS %}
+        <tr>
+            <td><a href="{{ link }}">{{ name }}</a></td>
+            <td>{{ desc | urlize }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <hr>
+    <li>Visit my <a href="https://github.com/sharat87">github page</a> for
+        more up-to-date info on what I'm upto.
+
+{% endblock content %}

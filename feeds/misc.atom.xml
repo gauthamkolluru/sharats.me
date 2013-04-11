@@ -1,0 +1,921 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom"><title>(shrikant-sharat)</title><link href="http://sharats.me/" rel="alternate"></link><link href="./feeds/misc.atom.xml" rel="self"></link><id>http://sharats.me/</id><updated>2012-04-29T00:00:00+05:30</updated><entry><title>The ever useful and neat subprocess module</title><link href="http://sharats.me/the-ever-useful-and-neat-subprocess-module.html" rel="alternate"></link><updated>2012-04-29T00:00:00+05:30</updated><author><name>Shrikant Sharat Kandula</name></author><id>tag:sharats.me,2012-04-29:the-ever-useful-and-neat-subprocess-module.html</id><summary type="html">&lt;p&gt;Python's &lt;a href="http://docs.python.org/library/subprocess.html"&gt;subprocess&lt;/a&gt; module is one of my favourite modules in the standard
+library. If you have ever done some decent amount of coding in python, you might
+have encountered it. This module is used for dealing with external commands,
+intended to be a replacement to the old &lt;a href="http://docs.python.org/library/os.html#os.system"&gt;&lt;code&gt;os.system&lt;/code&gt;&lt;/a&gt; and the like.&lt;/p&gt;
+&lt;p&gt;The most trivial use might be to get the output of a small shell command like
+&lt;code&gt;ls&lt;/code&gt; or &lt;code&gt;ps&lt;/code&gt;. Not that this is the best way to get a list of files in a
+directory (think &lt;a href="http://docs.python.org/library/os.html#os.listdir"&gt;&lt;code&gt;os.listdir&lt;/code&gt;&lt;/a&gt;), but you get the point.&lt;/p&gt;
+&lt;p&gt;I am going to put my notes and experiences about this module here. Please note,
+I wrote this with Python 2.7 in mind. Things &lt;strong&gt;are&lt;/strong&gt; slightly different in other
+versions (even 2.6). If you find any errors or suggestions, please let me know.&lt;/p&gt;
+&lt;div class="toc"&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href="#a-simple-usage"&gt;A simple usage&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="#popen-class"&gt;Popen class&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="#running-via-the-shell"&gt;Running via the shell&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="#getting-the-return-code-aka-exit-status"&gt;Getting the return code (aka exit status)&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="#io-streams"&gt;IO Streams&lt;/a&gt;&lt;ul&gt;
+&lt;li&gt;&lt;a href="#reading-error-stream"&gt;Reading error stream&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="#watching-both-stdout-and-stderr"&gt;Watching both stdout and stderr&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;a href="#passing-an-environment"&gt;Passing an environment&lt;/a&gt;&lt;ul&gt;
+&lt;li&gt;&lt;a href="#merge-with-current-environment"&gt;Merge with current environment&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="#unicode"&gt;Unicode&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;a href="#execute-in-a-different-working-directory"&gt;Execute in a different working directory&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="#killing-and-dieing"&gt;Killing and dieing&lt;/a&gt;&lt;ul&gt;
+&lt;li&gt;&lt;a href="#auto-kill-on-death"&gt;Auto-kill on death&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;a href="#launch-commands-in-a-terminal-emulator"&gt;Launch commands in a terminal emulator&lt;/a&gt;&lt;ul&gt;
+&lt;li&gt;&lt;a href="#linux"&gt;Linux&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href="#windows"&gt;Windows&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;a href="#conclusion"&gt;Conclusion&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;h1 id="a-simple-usage"&gt;A simple usage&lt;/h1&gt;
+&lt;p&gt;For the sake of providing context, lets run the &lt;code&gt;ls&lt;/code&gt; command from subprocess
+and get its output&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="kn"&gt;import&lt;/span&gt; &lt;span class="nn"&gt;subprocess&lt;/span&gt;
+&lt;span class="n"&gt;ls_output&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;subprocess&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;check_output&lt;/span&gt;&lt;span class="p"&gt;([&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;ls&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;])&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;I'll cover getting output from a command in detail later. To give more command
+line arguments,&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="n"&gt;subprocess&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;check_output&lt;/span&gt;&lt;span class="p"&gt;([&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;ls&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;#39;-l&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;])&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;The first item in the list is the executable and rest are its command line
+arguments (&lt;code&gt;argv&lt;/code&gt; equivalent). No quirky shell quoting and complex nested quote
+rules to digest. Just a plain python list.&lt;/p&gt;
+&lt;p&gt;However, not having shell quoting implies you don't also have the shell
+niceties. Like piping for one. The following won't work the way one would expect
+it to.&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="n"&gt;subprocess&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;check_output&lt;/span&gt;&lt;span class="p"&gt;([&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;ls&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;#39;|&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;#39;wc&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;#39;-l&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;])&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Here, the &lt;code&gt;ls&lt;/code&gt; command gets its first command as &lt;code&gt;|&lt;/code&gt; and I have no idea what ls
+would do with it. Perhaps complain that no such file exists. So, instead, we
+have to use the &lt;code&gt;shell&lt;/code&gt; boolean argument. More later down in the article.&lt;/p&gt;
+&lt;h1 id="popen-class"&gt;Popen class&lt;/h1&gt;
+&lt;p&gt;If there's just one thing in the subprocess module that you should be concerned
+with, its the &lt;a href="http://docs.python.org/library/subprocess.html#subprocess.Popen"&gt;&lt;code&gt;Popen&lt;/code&gt;&lt;/a&gt; class. The other functions like &lt;a href="http://docs.python.org/library/subprocess.html#subprocess.call"&gt;&lt;code&gt;call&lt;/code&gt;&lt;/a&gt;,
+&lt;a href="http://docs.python.org/library/subprocess.html#subprocess.check_call"&gt;&lt;code&gt;check_output&lt;/code&gt;&lt;/a&gt;, and &lt;a href="http://docs.python.org/library/subprocess.html#subprocess.check_call"&gt;&lt;code&gt;check_call&lt;/code&gt;&lt;/a&gt; use &lt;code&gt;Popen&lt;/code&gt;
+internally. Here's the signature from the docs.&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="k"&gt;class&lt;/span&gt; &lt;span class="nc"&gt;subprocess&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;Popen&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;args&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;bufsize&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="mi"&gt;0&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;executable&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="bp"&gt;None&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;stdin&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="bp"&gt;None&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+    &lt;span class="n"&gt;stdout&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="bp"&gt;None&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;stderr&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="bp"&gt;None&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;preexec_fn&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="bp"&gt;None&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;close_fds&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="bp"&gt;False&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;shell&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="bp"&gt;False&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+    &lt;span class="n"&gt;cwd&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="bp"&gt;None&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;env&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="bp"&gt;None&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;universal_newlines&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="bp"&gt;False&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;startupinfo&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="bp"&gt;None&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+    &lt;span class="n"&gt;creationflags&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="mi"&gt;0&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;I suggest you read the docs for this class. As with all python docs, its really
+good.&lt;/p&gt;
+&lt;h1 id="running-via-the-shell"&gt;Running via the shell&lt;/h1&gt;
+&lt;p&gt;Subprocess can also run command-line instructions via a shell program. This is
+usually &lt;code&gt;dash&lt;/code&gt;/&lt;code&gt;bash&lt;/code&gt; on Linux and &lt;code&gt;cmd&lt;/code&gt; on windows.&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="n"&gt;subprocess&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;call&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;ls | wc -l&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;shell&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="bp"&gt;True&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Notice that in this case we pass a string, not a list. This is because we want
+the shell to interpret the whole of our command. You can even use shell style
+quoting if you like. It is up to the shell to decide how to best split the
+command line into executable and command line arguments.&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;On windows, if you pass a list for args, it will be turned into a string using
+the same rules as the MS C runtime. See the doc-string for
+&lt;code&gt;subprocess.list2cmdline&lt;/code&gt; for more on this. Whereas on unix-like systems, even
+if you pass a string, its turned into a list of one item :).&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;The behaviour of the &lt;code&gt;shell&lt;/code&gt; argument can sometimes be confusing so I'll try to
+clear it a bit here. Something I wished I had when I first encountered this
+module.&lt;/p&gt;
+&lt;p&gt;Firstly, lets consider the case where &lt;code&gt;shell&lt;/code&gt; is set to &lt;code&gt;False&lt;/code&gt;, the default.
+In this case, if &lt;code&gt;args&lt;/code&gt; is a string, it is assumed to be the name of the
+executable file. Even if it contains spaces. Consider the following.&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="n"&gt;subprocess&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;call&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;ls -l&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;This won't work because subprocess is looking for an executable file called &lt;code&gt;ls
+-l&lt;/code&gt;, but obviously can't find it. However, if &lt;code&gt;args&lt;/code&gt; is a list, then the first
+item in this list is considered as the executable and the rest of the items in
+the list are passed as command line arguments to the program.&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="n"&gt;subprocess&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;call&lt;/span&gt;&lt;span class="p"&gt;([&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;ls&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;#39;-l&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;])&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;does what you think it will.&lt;/p&gt;
+&lt;p&gt;Second case, with &lt;code&gt;shell&lt;/code&gt; set to &lt;code&gt;True&lt;/code&gt;, the program that actually gets executed
+is the OS default shell, &lt;code&gt;/bin/sh&lt;/code&gt; on Linux and &lt;code&gt;cmd.exe&lt;/code&gt; on windows. This can
+be changed with the &lt;code&gt;executable&lt;/code&gt; argument.&lt;/p&gt;
+&lt;p&gt;When using the shell, &lt;code&gt;args&lt;/code&gt; is usually a string, something that will be parsed
+by the shell program. The &lt;code&gt;args&lt;/code&gt; string is passed as a command line argument to
+the shell (with a &lt;code&gt;-c&lt;/code&gt; option on Linux) such that the shell will interpret it as
+a shell command sequence and process it accordingly. This means you can use all
+the shell builtins and goodies that your shell offers.&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="n"&gt;subprocess&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;call&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;ls -l&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;shell&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="bp"&gt;True&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;is similar to&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="nv"&gt;$ &lt;/span&gt;/bin/sh -c &lt;span class="s1"&gt;&amp;#39;ls -l&amp;#39;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;In the same vein, if you pass a list as &lt;code&gt;args&lt;/code&gt; with &lt;code&gt;shell&lt;/code&gt; set to &lt;code&gt;True&lt;/code&gt;, all
+items in the list are passed as command line arguments to the shell.&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="n"&gt;subprocess&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;call&lt;/span&gt;&lt;span class="p"&gt;([&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;ls&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;#39;-l&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;],&lt;/span&gt; &lt;span class="n"&gt;shell&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="bp"&gt;True&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;is similar to&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="nv"&gt;$ &lt;/span&gt;/bin/sh -c ls -l
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;which is the same as&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="nv"&gt;$ &lt;/span&gt;/bin/sh -c ls
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;since &lt;code&gt;/bin/sh&lt;/code&gt; takes just the argument next to &lt;code&gt;-c&lt;/code&gt; as the command line to
+execute.&lt;/p&gt;
+&lt;h1 id="getting-the-return-code-aka-exit-status"&gt;Getting the return code (aka exit status)&lt;/h1&gt;
+&lt;p&gt;If you want to run an external command and its return code is all you're
+concerned with, the &lt;a href="http://docs.python.org/library/subprocess.html#subprocess.call"&gt;&lt;code&gt;call&lt;/code&gt;&lt;/a&gt; and &lt;a href="http://docs.python.org/library/subprocess.html#subprocess.check_call"&gt;&lt;code&gt;check_call&lt;/code&gt;&lt;/a&gt; functions are
+what you're looking for. They both return the return code after running the
+command. The difference is, &lt;code&gt;check_call&lt;/code&gt; raises a &lt;code&gt;CalledProcessError&lt;/code&gt; if the
+return code is non-zero.&lt;/p&gt;
+&lt;p&gt;If you've read the docs for these functions, you'll see that its not recommended
+to use &lt;code&gt;stdout=PIPE&lt;/code&gt; or &lt;code&gt;stderr=PIPE&lt;/code&gt;. And if you don't, the &lt;code&gt;stdout&lt;/code&gt; and
+&lt;code&gt;stderr&lt;/code&gt; of the command are just redirected to the parent's (Python VM in this
+case) streams.&lt;/p&gt;
+&lt;p&gt;If that is not what you want, you have to use the &lt;code&gt;Popen&lt;/code&gt; class.&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="n"&gt;proc&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;Popen&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;ls&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;The moment the &lt;code&gt;Popen&lt;/code&gt; class is instantiated, the command starts running. You
+can wait for it and after its done, access the return code via the
+&lt;a href="http://docs.python.org/library/subprocess.html#subprocess.Popen.returncode"&gt;&lt;code&gt;returncode&lt;/code&gt;&lt;/a&gt; attribute.&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="n"&gt;proc&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;wait&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;
+&lt;span class="k"&gt;print&lt;/span&gt; &lt;span class="n"&gt;proc&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;returncode&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;If you are trying this out in a python REPL, you won't see a need to call
+&lt;a href="http://docs.python.org/library/subprocess.html#subprocess.Popen.wait"&gt;&lt;code&gt;.wait()&lt;/code&gt;&lt;/a&gt; since you can just wait yourself in the REPL till the command
+is finished and then access the &lt;code&gt;returncode&lt;/code&gt;. Surprise!&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="o"&gt;&amp;gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;proc&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;Popen&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;ls&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;span class="o"&gt;&amp;gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;file1&lt;/span&gt; &lt;span class="n"&gt;file2&lt;/span&gt;
+
+&lt;span class="o"&gt;&amp;gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class="k"&gt;print&lt;/span&gt; &lt;span class="n"&gt;proc&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;returncode&lt;/span&gt;
+&lt;span class="bp"&gt;None&lt;/span&gt;
+&lt;span class="o"&gt;&amp;gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class="c"&gt;# wat?&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;The command is definitely finished. Why don't we have a return code?&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="o"&gt;&amp;gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;proc&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;wait&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;
+&lt;span class="mi"&gt;0&lt;/span&gt;
+&lt;span class="o"&gt;&amp;gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class="k"&gt;print&lt;/span&gt; &lt;span class="n"&gt;proc&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;returncode&lt;/span&gt;
+&lt;span class="mi"&gt;0&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;The reason for this is the &lt;code&gt;returncode&lt;/code&gt; is not automatically set when a process
+ends. You have to call &lt;code&gt;.wait&lt;/code&gt; or &lt;a href="http://docs.python.org/library/subprocess.html#subprocess.Popen.poll"&gt;&lt;code&gt;.poll&lt;/code&gt;&lt;/a&gt; to realize if the program is
+done and set the &lt;code&gt;returncode&lt;/code&gt; attribute.&lt;/p&gt;
+&lt;h1 id="io-streams"&gt;IO Streams&lt;/h1&gt;
+&lt;p&gt;The simplest way to get the output of a command, as seen previously, is to use
+the &lt;a href="http://docs.python.org/library/subprocess.html#subprocess.check_call"&gt;&lt;code&gt;check_output&lt;/code&gt;&lt;/a&gt; function.&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="n"&gt;output&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;subprocess&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;check_output&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;ls&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Notice the &lt;code&gt;check_&lt;/code&gt; prefix in the function name? Ring any bell? That's right,
+this function will raise a &lt;code&gt;CalledProcessError&lt;/code&gt; if the return code is non-zero.&lt;/p&gt;
+&lt;p&gt;This may not always be the best solution to get the output from a command. If
+you do get a &lt;code&gt;CalledProcessError&lt;/code&gt; from this function call, unless you have the
+contents of &lt;code&gt;stderr&lt;/code&gt; you probably have little idea what went wrong. You'll want
+to know what's written to the command's &lt;code&gt;stderr&lt;/code&gt;.&lt;/p&gt;
+&lt;h2 id="reading-error-stream"&gt;Reading error stream&lt;/h2&gt;
+&lt;p&gt;There are two ways to get the error output. First is redirecting &lt;code&gt;stderr&lt;/code&gt; to
+&lt;code&gt;stdout&lt;/code&gt; and only being concerned with &lt;code&gt;stdout&lt;/code&gt;. This can be done by setting the
+&lt;code&gt;stderr&lt;/code&gt; argument to &lt;a href="http://docs.python.org/library/subprocess.html#subprocess.STDOUT"&gt;&lt;code&gt;subprocess.STDOUT&lt;/code&gt;&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Second is to create a &lt;code&gt;Popen&lt;/code&gt; object with &lt;code&gt;stderr&lt;/code&gt; set to
+&lt;a href="http://docs.python.org/library/subprocess.html#subprocess.PIPE"&gt;&lt;code&gt;subprocess.PIPE&lt;/code&gt;&lt;/a&gt; (optionally along with &lt;code&gt;stdout&lt;/code&gt; argument) and read
+from its &lt;code&gt;stderr&lt;/code&gt; attribute which is a readable file-like object. There is also
+a convenience method on &lt;code&gt;Popen&lt;/code&gt; class, called &lt;code&gt;.communicate&lt;/code&gt;, which optionally
+takes a string to be sent to the process's &lt;code&gt;stdin&lt;/code&gt; and returns a tuple of
+&lt;code&gt;(stdout_content, stderr_content)&lt;/code&gt;.&lt;/p&gt;
+&lt;h2 id="watching-both-stdout-and-stderr"&gt;Watching both &lt;code&gt;stdout&lt;/code&gt; and &lt;code&gt;stderr&lt;/code&gt;&lt;/h2&gt;
+&lt;p&gt;However, all of these assume that the command runs for some time, prints out a
+couple of lines of output and exits, so you can get the output(s) in strings.
+This is sometimes not the case. If you want to run a network intensive command
+like an svn checkout, which prints each file as and when downloaded, you need
+something better.&lt;/p&gt;
+&lt;p&gt;The initial solution one can think of is this.&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="n"&gt;proc&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;Popen&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;svn co svn+ssh://myrepo&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;stdout&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;PIPE&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="n"&gt;line&lt;/span&gt; &lt;span class="ow"&gt;in&lt;/span&gt; &lt;span class="n"&gt;proc&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;stdout&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+    &lt;span class="k"&gt;print&lt;/span&gt; &lt;span class="n"&gt;line&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;This works, for the most part. But, again, if there is an error, you'll want to
+read &lt;code&gt;stderr&lt;/code&gt; too. It would be nice to read &lt;code&gt;stdout&lt;/code&gt; and &lt;code&gt;stderr&lt;/code&gt;
+simultaneously. Just like a shell seems to be doing. Alas, this remains a not so
+straightforward problem as of today, at least on non-Linux systems.&lt;/p&gt;
+&lt;p&gt;On Linux (and where its supported), you can use the &lt;a href="http://docs.python.org/library/select.html"&gt;&lt;code&gt;select&lt;/code&gt;&lt;/a&gt; module to
+keep an eye on multiple file-like stream objects. But this isn't available on
+windows. A more platform independent solution that I found works well, is using
+threads and a &lt;a href="http://docs.python.org/library/queue.html#queue-objects"&gt;&lt;code&gt;Queue&lt;/code&gt;&lt;/a&gt;.&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="kn"&gt;from&lt;/span&gt; &lt;span class="nn"&gt;subprocess&lt;/span&gt; &lt;span class="kn"&gt;import&lt;/span&gt; &lt;span class="n"&gt;Popen&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;PIPE&lt;/span&gt;
+&lt;span class="kn"&gt;from&lt;/span&gt; &lt;span class="nn"&gt;threading&lt;/span&gt; &lt;span class="kn"&gt;import&lt;/span&gt; &lt;span class="n"&gt;Thread&lt;/span&gt;
+&lt;span class="kn"&gt;from&lt;/span&gt; &lt;span class="nn"&gt;Queue&lt;/span&gt; &lt;span class="kn"&gt;import&lt;/span&gt; &lt;span class="n"&gt;Queue&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;Empty&lt;/span&gt;
+
+&lt;span class="n"&gt;io_q&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;Queue&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;
+
+&lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;stream_watcher&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;identifier&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;stream&lt;/span&gt;&lt;span class="p"&gt;):&lt;/span&gt;
+
+    &lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="n"&gt;line&lt;/span&gt; &lt;span class="ow"&gt;in&lt;/span&gt; &lt;span class="n"&gt;stream&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+        &lt;span class="n"&gt;io_q&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;put&lt;/span&gt;&lt;span class="p"&gt;((&lt;/span&gt;&lt;span class="n"&gt;identifier&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;line&lt;/span&gt;&lt;span class="p"&gt;))&lt;/span&gt;
+
+    &lt;span class="k"&gt;if&lt;/span&gt; &lt;span class="ow"&gt;not&lt;/span&gt; &lt;span class="n"&gt;stream&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;closed&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+        &lt;span class="n"&gt;stream&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;close&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;
+
+&lt;span class="n"&gt;proc&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;Popen&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;svn co svn+ssh://myrepo&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;stdout&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;PIPE&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;stderr&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;PIPE&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+
+&lt;span class="n"&gt;Thread&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;target&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;stream_watcher&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;name&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;stdout-watcher&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+        &lt;span class="n"&gt;args&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;STDOUT&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;proc&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;stdout&lt;/span&gt;&lt;span class="p"&gt;))&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;start&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;
+&lt;span class="n"&gt;Thread&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;target&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;stream_watcher&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;name&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;stderr-watcher&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+        &lt;span class="n"&gt;args&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;STDERR&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;proc&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;stderr&lt;/span&gt;&lt;span class="p"&gt;))&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;start&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;
+
+&lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;printer&lt;/span&gt;&lt;span class="p"&gt;():&lt;/span&gt;
+    &lt;span class="k"&gt;while&lt;/span&gt; &lt;span class="bp"&gt;True&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+        &lt;span class="k"&gt;try&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+            &lt;span class="c"&gt;# Block for 1 second.&lt;/span&gt;
+            &lt;span class="n"&gt;item&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;io_q&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;get&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="bp"&gt;True&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="mi"&gt;1&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+        &lt;span class="k"&gt;except&lt;/span&gt; &lt;span class="n"&gt;Empty&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+            &lt;span class="c"&gt;# No output in either streams for a second. Are we done?&lt;/span&gt;
+            &lt;span class="k"&gt;if&lt;/span&gt; &lt;span class="n"&gt;proc&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;poll&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt; &lt;span class="ow"&gt;is&lt;/span&gt; &lt;span class="ow"&gt;not&lt;/span&gt; &lt;span class="bp"&gt;None&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+                &lt;span class="k"&gt;break&lt;/span&gt;
+        &lt;span class="k"&gt;else&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+            &lt;span class="n"&gt;identifier&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;line&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;item&lt;/span&gt;
+            &lt;span class="k"&gt;print&lt;/span&gt; &lt;span class="n"&gt;identifier&lt;/span&gt; &lt;span class="o"&gt;+&lt;/span&gt; &lt;span class="s"&gt;&amp;#39;:&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;line&lt;/span&gt;
+
+&lt;span class="n"&gt;Thread&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;target&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="n"&gt;printer&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;name&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;printer&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;start&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Fair bit of code. This is a typical producer-consumer thing. Two threads
+producing lines of output (one each from &lt;code&gt;stdout&lt;/code&gt; and &lt;code&gt;stderr&lt;/code&gt;) and pushing them
+into a queue. One thread watching the queue and printing the lines until the
+process itself finishes.&lt;/p&gt;
+&lt;h1 id="passing-an-environment"&gt;Passing an environment&lt;/h1&gt;
+&lt;p&gt;The &lt;code&gt;env&lt;/code&gt; argument to &lt;code&gt;Popen&lt;/code&gt; (and others) lets you customize the environment of
+the command being run. If it is not set, or is set to &lt;code&gt;None&lt;/code&gt;, the current
+process's environment is used, just as documented.&lt;/p&gt;
+&lt;p&gt;You might not agree with me, but I feel there are some subtleties with this
+argument that should have been mentioned in the documentation.&lt;/p&gt;
+&lt;h2 id="merge-with-current-environment"&gt;Merge with current environment&lt;/h2&gt;
+&lt;p&gt;One is that if you provide a mapping to &lt;code&gt;env&lt;/code&gt;, whatever is in this mapping is
+all that's available to the command being run. For example, if you don't give a
+&lt;code&gt;TOP_ARG&lt;/code&gt; in the &lt;code&gt;env&lt;/code&gt; mapping, the command won't see a &lt;code&gt;TOP_ARG&lt;/code&gt; in its
+environment. So, I frequently find myself doing this&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="n"&gt;p&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;Popen&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;command&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;env&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="nb"&gt;dict&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;os&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;environ&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;my_env_prop&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;value&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;))&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;This makes sense once you realize it, but I wish it were at least &lt;em&gt;hinted at&lt;/em&gt; in
+the documentation.&lt;/p&gt;
+&lt;h2 id="unicode"&gt;Unicode&lt;/h2&gt;
+&lt;p&gt;Another one, is to do with Unicode (Surprise surprise!). And windows. If you use
+&lt;code&gt;unicode&lt;/code&gt;s in the &lt;code&gt;env&lt;/code&gt; mapping, you get an error saying you can &lt;em&gt;only&lt;/em&gt; use
+strings in the environment mapping. The worst part about this error is that it
+only seems to happen on windows and not on Linux. If its an error to use
+&lt;code&gt;unicode&lt;/code&gt;s in this place, I wish it break on both platforms.&lt;/p&gt;
+&lt;p&gt;This issue is very painful if you're like me and use &lt;code&gt;unicode&lt;/code&gt; &lt;em&gt;all the time&lt;/em&gt;.&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="kn"&gt;from&lt;/span&gt; &lt;span class="nn"&gt;__future__&lt;/span&gt; &lt;span class="kn"&gt;import&lt;/span&gt; &lt;span class="n"&gt;unicode_literals&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;That line is present in all my python source files. The error message doesn't
+even bother to mention that you have &lt;code&gt;unicode&lt;/code&gt;s in your &lt;code&gt;env&lt;/code&gt; so it's very hard
+to understand what's going wrong.&lt;/p&gt;
+&lt;h1 id="execute-in-a-different-working-directory"&gt;Execute in a different working directory&lt;/h1&gt;
+&lt;p&gt;This is handled by the &lt;code&gt;cwd&lt;/code&gt; argument. You set the location of the directory
+which you want as the working directory of the program you are launching.&lt;/p&gt;
+&lt;p&gt;The docs do mention that the working directory is changed &lt;em&gt;before&lt;/em&gt; the command
+even starts running. But that you &lt;em&gt;can't&lt;/em&gt; specify program's path relative to the
+&lt;code&gt;cwd&lt;/code&gt;. In reality, I found that you &lt;em&gt;can&lt;/em&gt; do this.&lt;/p&gt;
+&lt;p&gt;Either I'm missing something with this or the docs really are inaccurate.
+Anyway, this works&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="n"&gt;subprocess&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;call&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;./ls&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;cwd&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;/bin&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Prints out all the files in &lt;code&gt;/bin&lt;/code&gt;. Of course, the following doesn't work when
+the working directory is not &lt;code&gt;/bin&lt;/code&gt;.&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="n"&gt;subprocess&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;call&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;./ls&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;So, if you are giving something explicitly to &lt;code&gt;cwd&lt;/code&gt; and are using a relative
+path for the executable, this is something to keep in mind.&lt;/p&gt;
+&lt;h1 id="killing-and-dieing"&gt;Killing and dieing&lt;/h1&gt;
+&lt;p&gt;A simple&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="n"&gt;proc&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;terminate&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;or for some dramatic umphh!&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="n"&gt;proc&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;kill&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;will do the trick to end the process. As noted in the documentation, the former
+sends a &lt;code&gt;SIGTERM&lt;/code&gt; and later sends a &lt;code&gt;SIGKILL&lt;/code&gt; on unix, but both do some native
+windows-y thing on windows.&lt;/p&gt;
+&lt;h2 id="auto-kill-on-death"&gt;Auto-kill on death&lt;/h2&gt;
+&lt;p&gt;The processes you start in your python program, stay running even after your
+program exits. This is &lt;em&gt;usually&lt;/em&gt; what you want, but when you want all your sub
+processes killed automatically on exit with &lt;code&gt;Ctrl+C&lt;/code&gt; or the like, you have to
+use the &lt;a href="http://docs.python.org/library/atexit.html"&gt;&lt;code&gt;atexit&lt;/code&gt;&lt;/a&gt; module.&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="n"&gt;procs&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="p"&gt;[]&lt;/span&gt;
+
+&lt;span class="nd"&gt;@atexit.register&lt;/span&gt;
+&lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;kill_subprocesses&lt;/span&gt;&lt;span class="p"&gt;():&lt;/span&gt;
+    &lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="n"&gt;proc&lt;/span&gt; &lt;span class="ow"&gt;in&lt;/span&gt; &lt;span class="n"&gt;procs&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+        &lt;span class="n"&gt;proc&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;kill&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;And add all the &lt;code&gt;Popen&lt;/code&gt; objects created to the &lt;code&gt;procs&lt;/code&gt; list. This is the only
+solution I found that works best.&lt;/p&gt;
+&lt;h1 id="launch-commands-in-a-terminal-emulator"&gt;Launch commands in a terminal emulator&lt;/h1&gt;
+&lt;p&gt;On one occasion, I had to write a script that would launch multiple svn
+checkouts and then run many ant builds (~20-35) on the checked out projects. In
+my opinion, the best and easiest way to do this is to fire up multiple terminal
+emulator windows each running an individual checkout/ant-build. This allows us
+to monitor each process and even cancel any of them by simply closing the
+corresponding terminal emulator window.&lt;/p&gt;
+&lt;h2 id="linux"&gt;Linux&lt;/h2&gt;
+&lt;p&gt;This is pretty trivial actually. On Linux, you can use &lt;code&gt;xterm&lt;/code&gt; for this.&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="n"&gt;Popen&lt;/span&gt;&lt;span class="p"&gt;([&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;xterm&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;#39;-e&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;#39;sleep 3s&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;])&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;h2 id="windows"&gt;Windows&lt;/h2&gt;
+&lt;p&gt;On windows, its not as straight forward. The first solution for this would be&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="n"&gt;Popen&lt;/span&gt;&lt;span class="p"&gt;([&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;cmd&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;#39;/K&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;#39;command&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;])&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;blockquote&gt;
+&lt;p&gt;&lt;code&gt;/K&lt;/code&gt; option tells &lt;code&gt;cmd&lt;/code&gt; to run the command and keep the command window from
+closing. You may use &lt;code&gt;/C&lt;/code&gt; instead to close the command window after the
+command finishes.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;As simple as it looks, it has some weird behavior. I don't completely understand
+it, but I'll try to explain what I have. When you try to run a python script
+with the above &lt;code&gt;Popen&lt;/code&gt; call, in a command window like this&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;python main.py
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;you &lt;em&gt;don't&lt;/em&gt; see a new command window pop up. Instead, the sub command runs in
+the same command window. I have no idea what happens when you run multiple sub
+commands this way. (I have only limited access to windows).&lt;/p&gt;
+&lt;p&gt;If instead you run it in something like an IDE or IDLE (&lt;kbd&gt;F5&lt;/kbd&gt;), you have
+a new command window open up. I believe one each for each command you run this
+way. Just the way you expect.&lt;/p&gt;
+&lt;p&gt;But I gave up on &lt;code&gt;cmd.exe&lt;/code&gt; for this purpose and learnt to use the
+&lt;a href="https://code.google.com/p/mintty/"&gt;&lt;code&gt;mintty&lt;/code&gt;&lt;/a&gt; utility that comes with &lt;a href="http://www.cygwin.com/"&gt;cygwin&lt;/a&gt; (I think 1.7+). &lt;code&gt;mintty&lt;/code&gt;
+is awesome. Really. Its been a while since I felt that way about a command line
+utility on windows.&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="n"&gt;Popen&lt;/span&gt;&lt;span class="p"&gt;([&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;mintty&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;#39;--hold&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;#39;error&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;#39;--exec&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;#39;command&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;])&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;This. A new &lt;code&gt;mintty&lt;/code&gt; console window opens up running the command and it closes
+automatically, &lt;em&gt;if&lt;/em&gt; the command exits with zero status (that's what &lt;code&gt;--hold
+error&lt;/code&gt; does). Otherwise, it stays on. Very useful.&lt;/p&gt;
+&lt;h1 id="conclusion"&gt;Conclusion&lt;/h1&gt;
+&lt;p&gt;The subprocess module is a very useful thing. Spend some time understanding it
+better. This is my attempt at helping people with it, and turned out to be way
+longer than I'd expected. If there are any inaccuracies in this, or if you have
+anything to add, please leave a comment.&lt;/p&gt;</summary><category term="python"></category><category term="python-subprocess"></category><category term="tutorial"></category></entry><entry><title>Serializing python-requests' Session objects for fun and profit</title><link href="http://sharats.me/serializing-python-requests-session-objects-for-fun-and-profit.html" rel="alternate"></link><updated>2012-02-18T00:00:00+05:30</updated><author><name>Shrikant Sharat Kandula</name></author><id>tag:sharats.me,2012-02-18:serializing-python-requests-session-objects-for-fun-and-profit.html</id><summary type="html">&lt;h1 id="prepare"&gt;Prepare&lt;/h1&gt;
+&lt;p&gt;If you haven't checked out @kennethreitz's excellent &lt;a href="http://docs.python-requests.org/en/latest/index.html"&gt;python-requests&lt;/a&gt;
+library yet, I suggest you go do that immediately. Go on, I'll wait for you.&lt;/p&gt;
+&lt;p&gt;Had your candy? That is one of the most beatiful piece of python code I've read.
+And its an excellent library with a very humane API.&lt;/p&gt;
+&lt;p&gt;Recently, I have been using this library for a few of my company's internal
+projects and at a point I needed to serialize and save &lt;code&gt;Session&lt;/code&gt; objects for
+later. That wasn't as straightforward as I first thought it'd be, so I am
+sharing my experience here.&lt;/p&gt;
+&lt;p&gt;First off, let's make a simple http server which we are going to contact with
+python-requests. The server should be able to handle cookie based sessions and
+also have basic auth, as these things are handled by python-requests' Session
+objects on the client side. I won't discuss the code for the server here, you
+can get it from &lt;a href="https://gist.github.com/2660997#file_server.py"&gt;the gist&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Once you have the server running, now for the client, lets do requests!&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="kn"&gt;import&lt;/span&gt; &lt;span class="nn"&gt;requests&lt;/span&gt; &lt;span class="kn"&gt;as&lt;/span&gt; &lt;span class="nn"&gt;req&lt;/span&gt;
+
+&lt;span class="n"&gt;URL_ROOT&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="s"&gt;&amp;#39;http://localhost:5050&amp;#39;&lt;/span&gt;
+
+&lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;get_logged_in_session&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;name&lt;/span&gt;&lt;span class="p"&gt;):&lt;/span&gt;
+    &lt;span class="n"&gt;session&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;req&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;session&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;auth&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;user&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;#39;pass&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;))&lt;/span&gt;
+
+    &lt;span class="n"&gt;login_response&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;session&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;post&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;URL_ROOT&lt;/span&gt; &lt;span class="o"&gt;+&lt;/span&gt; &lt;span class="s"&gt;&amp;#39;/login&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;data&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="p"&gt;{&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;name&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="n"&gt;name&lt;/span&gt;&lt;span class="p"&gt;})&lt;/span&gt;
+    &lt;span class="n"&gt;login_response&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;raise_for_status&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;
+
+    &lt;span class="k"&gt;return&lt;/span&gt; &lt;span class="n"&gt;session&lt;/span&gt;
+
+&lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;get_whoami&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;session&lt;/span&gt;&lt;span class="p"&gt;):&lt;/span&gt;
+    &lt;span class="n"&gt;response&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;session&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;get&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;URL_ROOT&lt;/span&gt; &lt;span class="o"&gt;+&lt;/span&gt; &lt;span class="s"&gt;&amp;#39;/whoami&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+    &lt;span class="n"&gt;response&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;raise_for_status&lt;/span&gt;&lt;span class="p"&gt;()&lt;/span&gt;
+    &lt;span class="k"&gt;return&lt;/span&gt; &lt;span class="n"&gt;response&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;text&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;I defined two functions here. The &lt;code&gt;get_logged_in_session&lt;/code&gt; will create a new
+session and login to the http server and return that session. Any subsequent
+requests using this sesssion will be made as if you have logged in. That's what
+will be tested with the &lt;code&gt;get_whoami&lt;/code&gt; function, which will just return the
+response from &lt;code&gt;/whoami&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;Lets test this out. Make sure the &lt;code&gt;server.py&lt;/code&gt; is running and in another
+terminal,&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="err"&gt;$&lt;/span&gt; &lt;span class="n"&gt;python&lt;/span&gt; &lt;span class="o"&gt;-&lt;/span&gt;&lt;span class="n"&gt;i&lt;/span&gt; &lt;span class="n"&gt;client&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;py&lt;/span&gt;
+&lt;span class="o"&gt;&amp;gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;s&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;get_logged_in_session&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="err"&gt;&amp;#39;&lt;/span&gt;&lt;span class="n"&gt;sharat&lt;/span&gt;&lt;span class="err"&gt;&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;span class="o"&gt;&amp;gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;get_whoami&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;s&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;span class="n"&gt;u&lt;/span&gt;&lt;span class="err"&gt;&amp;#39;&lt;/span&gt;&lt;span class="n"&gt;You&lt;/span&gt; &lt;span class="n"&gt;are&lt;/span&gt; &lt;span class="n"&gt;sharat&lt;/span&gt;&lt;span class="err"&gt;&amp;#39;&lt;/span&gt;
+&lt;span class="o"&gt;&amp;gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;get_whoami&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;req&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;session&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;auth&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="err"&gt;&amp;#39;&lt;/span&gt;&lt;span class="n"&gt;user&lt;/span&gt;&lt;span class="err"&gt;&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="err"&gt;&amp;#39;&lt;/span&gt;&lt;span class="n"&gt;pass&lt;/span&gt;&lt;span class="err"&gt;&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;)))&lt;/span&gt;
+&lt;span class="n"&gt;u&lt;/span&gt;&lt;span class="err"&gt;&amp;#39;&lt;/span&gt;&lt;span class="n"&gt;You&lt;/span&gt; &lt;span class="n"&gt;are&lt;/span&gt; &lt;span class="n"&gt;a&lt;/span&gt; &lt;span class="n"&gt;guest&lt;/span&gt;&lt;span class="err"&gt;&amp;#39;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Works perfectly. If we pass it the logged in session, it gives us the username
+and if we pass it a new session, it gives us &lt;code&gt;a guest&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;Now, lets assume we have two functions, &lt;code&gt;serialize_session&lt;/code&gt; and
+&lt;code&gt;deserialize_session&lt;/code&gt; which do exactly what their names say. We can test them
+out by running a small test.py, as&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="kn"&gt;from&lt;/span&gt; &lt;span class="nn"&gt;client&lt;/span&gt; &lt;span class="kn"&gt;import&lt;/span&gt; &lt;span class="n"&gt;get_logged_in_session&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;get_whoami&lt;/span&gt;
+&lt;span class="kn"&gt;from&lt;/span&gt; &lt;span class="nn"&gt;serializer&lt;/span&gt; &lt;span class="kn"&gt;import&lt;/span&gt; &lt;span class="n"&gt;deserialize_session&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;serialize_session&lt;/span&gt;
+
+&lt;span class="n"&gt;session&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;get_logged_in_session&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;sharat&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;span class="n"&gt;dsession&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;deserialize_session&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;serialize_session&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;session&lt;/span&gt;&lt;span class="p"&gt;))&lt;/span&gt;
+
+&lt;span class="k"&gt;assert&lt;/span&gt; &lt;span class="n"&gt;get_whoami&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;session&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;==&lt;/span&gt; &lt;span class="n"&gt;get_whoami&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;dsession&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;span class="k"&gt;print&lt;/span&gt; &lt;span class="s"&gt;&amp;#39;Success&amp;#39;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;and a dummy serializer.py&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;serialize_session&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;session&lt;/span&gt;&lt;span class="p"&gt;):&lt;/span&gt;
+    &lt;span class="k"&gt;return&lt;/span&gt; &lt;span class="n"&gt;session&lt;/span&gt;
+
+&lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;deserialize_session&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;session&lt;/span&gt;&lt;span class="p"&gt;):&lt;/span&gt;
+    &lt;span class="k"&gt;return&lt;/span&gt; &lt;span class="n"&gt;session&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;And with that, of course, the test will not fail&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="err"&gt;$&lt;/span&gt; &lt;span class="n"&gt;python&lt;/span&gt; &lt;span class="n"&gt;test&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;py&lt;/span&gt;
+&lt;span class="n"&gt;Success&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;h1 id="serializing"&gt;Serializing&lt;/h1&gt;
+&lt;p&gt;Now, to implement the functions in &lt;code&gt;serializer.py&lt;/code&gt;. A simple one, would be to
+use pickle. Lets try&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="kn"&gt;import&lt;/span&gt; &lt;span class="nn"&gt;pickle&lt;/span&gt; &lt;span class="kn"&gt;as&lt;/span&gt; &lt;span class="nn"&gt;pk&lt;/span&gt;
+
+&lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;serialize_session&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;session&lt;/span&gt;&lt;span class="p"&gt;):&lt;/span&gt;
+    &lt;span class="k"&gt;return&lt;/span&gt; &lt;span class="n"&gt;pk&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;dumps&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;session&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+
+&lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;deserialize_session&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;data&lt;/span&gt;&lt;span class="p"&gt;):&lt;/span&gt;
+    &lt;span class="k"&gt;return&lt;/span&gt; &lt;span class="n"&gt;pk&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;loads&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;data&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;If you run &lt;code&gt;test.py&lt;/code&gt; now, python is going to yell at you.&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="err"&gt;$&lt;/span&gt; &lt;span class="nx"&gt;python&lt;/span&gt; &lt;span class="nx"&gt;test.py&lt;/span&gt;
+&lt;span class="nx"&gt;Traceback&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="nx"&gt;most&lt;/span&gt; &lt;span class="nx"&gt;recent&lt;/span&gt; &lt;span class="nb"&gt;call&lt;/span&gt; &lt;span class="nb"&gt;last&lt;/span&gt;&lt;span class="p"&gt;):&lt;/span&gt;
+  &lt;span class="nb"&gt;File&lt;/span&gt; &lt;span class="s2"&gt;&amp;quot;test.py&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="nb"&gt;line&lt;/span&gt; &lt;span class="mi"&gt;10&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="k"&gt;in&lt;/span&gt; &lt;span class="o"&gt;&amp;lt;&lt;/span&gt;&lt;span class="nx"&gt;module&lt;/span&gt;&lt;span class="o"&gt;&amp;gt;&lt;/span&gt;
+    &lt;span class="n"&gt;dsession&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="nx"&gt;deserialize_session&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="nx"&gt;serialize_session&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="nx"&gt;session&lt;/span&gt;&lt;span class="p"&gt;))&lt;/span&gt;
+&lt;span class="err"&gt;[&lt;/span&gt; &lt;span class="nx"&gt;...&lt;/span&gt; &lt;span class="cp"&gt;]&lt;/span&gt;
+    raise TypeError, &amp;quot;can&amp;#39;t pickle %s objects&amp;quot; % base.__name__
+TypeError: can&amp;#39;t pickle lock objects
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Oh well, it was worth a try I suppose.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Update&lt;/strong&gt;: The Session class can be made to
+&lt;a href="#update-pickling-can-also-work"&gt;implement&lt;/a&gt; the pickle protocol if you want to
+use pickle.&lt;/p&gt;
+&lt;p&gt;Next plan I had was to pick up attributes and data from a &lt;code&gt;Session&lt;/code&gt; object, just
+enough to recreate this object using the Session constructor, and serialize
+those attributes as a json. After all, the Session's API is very easy to use,
+how hard can picking attributes from it be? :)&lt;/p&gt;
+&lt;p&gt;So, I dug in the &lt;a href="https://github.com/kennethreitz/requests/blob/develop/requests/sessions.py#L50"&gt;sessions.py&lt;/a&gt; module of python-requests library. And here's
+what the signature of the constructor for &lt;code&gt;Session&lt;/code&gt; objects looks like&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;__init__&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+    &lt;span class="n"&gt;headers&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="bp"&gt;None&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+    &lt;span class="n"&gt;cookies&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="bp"&gt;None&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+    &lt;span class="n"&gt;auth&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="bp"&gt;None&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+    &lt;span class="n"&gt;timeout&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="bp"&gt;None&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+    &lt;span class="n"&gt;proxies&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="bp"&gt;None&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+    &lt;span class="n"&gt;hooks&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="bp"&gt;None&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+    &lt;span class="n"&gt;params&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="bp"&gt;None&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+    &lt;span class="n"&gt;config&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="bp"&gt;None&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+    &lt;span class="n"&gt;verify&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="bp"&gt;True&lt;/span&gt;&lt;span class="p"&gt;):&lt;/span&gt;
+    &lt;span class="c"&gt;# ...&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;So, if I pick up just these values, I should be able to recreate the session
+object. Sweet.&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="kn"&gt;import&lt;/span&gt; &lt;span class="nn"&gt;json&lt;/span&gt;
+&lt;span class="kn"&gt;import&lt;/span&gt; &lt;span class="nn"&gt;requests&lt;/span&gt; &lt;span class="kn"&gt;as&lt;/span&gt; &lt;span class="nn"&gt;req&lt;/span&gt;
+
+&lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;serialize_session&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;session&lt;/span&gt;&lt;span class="p"&gt;):&lt;/span&gt;
+    &lt;span class="n"&gt;attrs&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;headers&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;#39;cookies&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;#39;auth&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;#39;timeout&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;#39;proxies&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;#39;hooks&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+        &lt;span class="s"&gt;&amp;#39;params&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;#39;config&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;#39;verify&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt;
+
+    &lt;span class="n"&gt;session_data&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="p"&gt;{}&lt;/span&gt;
+
+    &lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="n"&gt;attr&lt;/span&gt; &lt;span class="ow"&gt;in&lt;/span&gt; &lt;span class="n"&gt;attrs&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+        &lt;span class="n"&gt;session_data&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;attr&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="nb"&gt;getattr&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;session&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;attr&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+
+    &lt;span class="k"&gt;return&lt;/span&gt; &lt;span class="n"&gt;json&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;dumps&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;session_data&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+
+&lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;deserialize_session&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;data&lt;/span&gt;&lt;span class="p"&gt;):&lt;/span&gt;
+    &lt;span class="k"&gt;return&lt;/span&gt; &lt;span class="n"&gt;req&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;session&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="o"&gt;**&lt;/span&gt;&lt;span class="n"&gt;json&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;loads&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;data&lt;/span&gt;&lt;span class="p"&gt;))&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;And let's try this out&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="err"&gt;$&lt;/span&gt; &lt;span class="nx"&gt;python&lt;/span&gt; &lt;span class="nx"&gt;test.py&lt;/span&gt;
+&lt;span class="nx"&gt;Traceback&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="nx"&gt;most&lt;/span&gt; &lt;span class="nx"&gt;recent&lt;/span&gt; &lt;span class="nb"&gt;call&lt;/span&gt; &lt;span class="nb"&gt;last&lt;/span&gt;&lt;span class="p"&gt;):&lt;/span&gt;
+  &lt;span class="nb"&gt;File&lt;/span&gt; &lt;span class="s2"&gt;&amp;quot;test.py&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="nb"&gt;line&lt;/span&gt; &lt;span class="mi"&gt;12&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="k"&gt;in&lt;/span&gt; &lt;span class="o"&gt;&amp;lt;&lt;/span&gt;&lt;span class="nx"&gt;module&lt;/span&gt;&lt;span class="o"&gt;&amp;gt;&lt;/span&gt;
+    &lt;span class="nx"&gt;assert&lt;/span&gt; &lt;span class="nx"&gt;get_whoami&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="nx"&gt;session&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;==&lt;/span&gt; &lt;span class="nx"&gt;get_whoami&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="nx"&gt;dsession&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;span class="err"&gt;[&lt;/span&gt; &lt;span class="nx"&gt;...&lt;/span&gt; &lt;span class="cp"&gt;]&lt;/span&gt;
+&lt;span class="cp"&gt;[&lt;/span&gt;&lt;span class="nx"&gt;...&lt;/span&gt;&lt;span class="cp"&gt;]&lt;/span&gt;requests/models.py&amp;quot;, line 447, in send
+    r = self.auth(self)
+TypeError: &amp;#39;list&amp;#39; object is not callable
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Okay, that error message is very wierd. Why would anyone &lt;em&gt;call&lt;/em&gt; a list object?&lt;/p&gt;
+&lt;p&gt;Go dig in the &lt;a href="https://github.com/kennethreitz/requests/blob/develop/requests/models.py#L447"&gt;models.py&lt;/a&gt; module. See this&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="p"&gt;[&lt;/span&gt; &lt;span class="o"&gt;...&lt;/span&gt; &lt;span class="p"&gt;]&lt;/span&gt;
+&lt;span class="k"&gt;if&lt;/span&gt; &lt;span class="nb"&gt;isinstance&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;auth&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="nb"&gt;tuple&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="ow"&gt;and&lt;/span&gt; &lt;span class="nb"&gt;len&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;auth&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;==&lt;/span&gt; &lt;span class="mi"&gt;2&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+    &lt;span class="c"&gt;# special-case basic HTTP auth&lt;/span&gt;
+    &lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;auth&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;HTTPBasicAuth&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="o"&gt;*&lt;/span&gt;&lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;auth&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+
+&lt;span class="c"&gt;# Allow auth to make its changes.&lt;/span&gt;
+&lt;span class="n"&gt;r&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;auth&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;span class="p"&gt;[&lt;/span&gt; &lt;span class="o"&gt;...&lt;/span&gt; &lt;span class="p"&gt;]&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;There. Its not a list that's being called. Not directly at least. The problem
+here is that the &lt;code&gt;auth&lt;/code&gt; we are passing to &lt;code&gt;session()&lt;/code&gt; is not a tuple. Duh!
+While I like it that &lt;code&gt;auth&lt;/code&gt; is restricted to be a tuple, I wish there was a
+better error message for when &lt;code&gt;auth&lt;/code&gt; is a list instead of a tuple. I personally
+wouldn't want it to accept a &lt;code&gt;list&lt;/code&gt; for &lt;code&gt;auth&lt;/code&gt; though.&lt;/p&gt;
+&lt;p&gt;So, what went wrong? &lt;code&gt;json&lt;/code&gt; does not differentiate between a tuple and a list.
+It only does lists. So, when serializing and deserializing, the &lt;code&gt;auth&lt;/code&gt; tuple is
+turned to a &lt;code&gt;list&lt;/code&gt;. Lets turn it back&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;deserialize_session&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;data&lt;/span&gt;&lt;span class="p"&gt;):&lt;/span&gt;
+    &lt;span class="n"&gt;session_data&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;json&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;loads&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;data&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+
+    &lt;span class="k"&gt;if&lt;/span&gt; &lt;span class="s"&gt;&amp;#39;auth&amp;#39;&lt;/span&gt; &lt;span class="ow"&gt;in&lt;/span&gt; &lt;span class="n"&gt;session_data&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+        &lt;span class="n"&gt;session_data&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;auth&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="nb"&gt;tuple&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;session_data&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;auth&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;])&lt;/span&gt;
+
+    &lt;span class="k"&gt;return&lt;/span&gt; &lt;span class="n"&gt;req&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;session&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="o"&gt;**&lt;/span&gt;&lt;span class="n"&gt;session_data&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;And&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="err"&gt;$&lt;/span&gt; &lt;span class="nx"&gt;python&lt;/span&gt; &lt;span class="nx"&gt;test.py&lt;/span&gt;
+&lt;span class="nx"&gt;Traceback&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="nx"&gt;most&lt;/span&gt; &lt;span class="nx"&gt;recent&lt;/span&gt; &lt;span class="nb"&gt;call&lt;/span&gt; &lt;span class="nb"&gt;last&lt;/span&gt;&lt;span class="p"&gt;):&lt;/span&gt;
+  &lt;span class="nb"&gt;File&lt;/span&gt; &lt;span class="s2"&gt;&amp;quot;test.py&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="nb"&gt;line&lt;/span&gt; &lt;span class="mi"&gt;12&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="k"&gt;in&lt;/span&gt; &lt;span class="o"&gt;&amp;lt;&lt;/span&gt;&lt;span class="nx"&gt;module&lt;/span&gt;&lt;span class="o"&gt;&amp;gt;&lt;/span&gt;
+    &lt;span class="nx"&gt;assert&lt;/span&gt; &lt;span class="nx"&gt;get_whoami&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="nx"&gt;session&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;==&lt;/span&gt; &lt;span class="nx"&gt;get_whoami&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="nx"&gt;dsession&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;span class="err"&gt;[&lt;/span&gt; &lt;span class="nx"&gt;...&lt;/span&gt; &lt;span class="cp"&gt;]&lt;/span&gt;
+  File &amp;quot;/usr/lib/python2.7/string.py&amp;quot;, line 493, in translate
+    return s.translate(table, deletions)
+TypeError: translate() takes exactly one argument (2 given)
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Wait. What? Now we have an error from stdlib? This just keeps getting better and
+better. If this looks like something that can frustrate you, go get some coffee
+:)&lt;/p&gt;
+&lt;p&gt;If you look at the complete stack trace, the second file from bottom,&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;  &lt;span class="n"&gt;File&lt;/span&gt; &lt;span class="s"&gt;&amp;quot;[...]site-packages/requests/packages/oreos/monkeys.py&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;line&lt;/span&gt; &lt;span class="mi"&gt;470&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;in&lt;/span&gt; &lt;span class="n"&gt;set&lt;/span&gt;
+    &lt;span class="k"&gt;if&lt;/span&gt; &lt;span class="s"&gt;&amp;quot;&amp;quot;&lt;/span&gt; &lt;span class="o"&gt;!=&lt;/span&gt; &lt;span class="n"&gt;translate&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;key&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;idmap&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;LegalChars&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;&lt;span class="o"&gt;:&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;This thing seems to be calling the &lt;code&gt;translate&lt;/code&gt; method incorrectly. With a bit of
+debugging and yelling at my monitor, I found out the problem and for a moment,
+lost my grip on reality.&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;str.translate&lt;/code&gt; takes 2 arguments, but &lt;code&gt;unicode.translate&lt;/code&gt; takes only 1. I have
+no idea why this is done this way but I sure as hell didn't enjoy it. The code
+in &lt;code&gt;oreos/monkeys.py&lt;/code&gt; assumes that the &lt;code&gt;key&lt;/code&gt; is a &lt;code&gt;str&lt;/code&gt;. However, what
+&lt;code&gt;json.loads&lt;/code&gt; gives you, is unicode stuff. So, we need to convert just the parts
+in the deserialized dict we get from &lt;code&gt;json.loads&lt;/code&gt; which are being used by the
+&lt;code&gt;oreos/monkeys.py&lt;/code&gt;, from &lt;code&gt;unicode&lt;/code&gt; to &lt;code&gt;str&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;Reading a bit more code around the oreos library, it didn't take long to figure
+out that those were the keys in the &lt;code&gt;cookies&lt;/code&gt; dict. Lo&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;deserialize_session&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;data&lt;/span&gt;&lt;span class="p"&gt;):&lt;/span&gt;
+    &lt;span class="n"&gt;session_data&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;json&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;loads&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;data&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+
+    &lt;span class="k"&gt;if&lt;/span&gt; &lt;span class="s"&gt;&amp;#39;auth&amp;#39;&lt;/span&gt; &lt;span class="ow"&gt;in&lt;/span&gt; &lt;span class="n"&gt;session_data&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+        &lt;span class="n"&gt;session_data&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;auth&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="nb"&gt;tuple&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;session_data&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;auth&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;])&lt;/span&gt;
+
+    &lt;span class="k"&gt;if&lt;/span&gt; &lt;span class="s"&gt;&amp;#39;cookies&amp;#39;&lt;/span&gt; &lt;span class="ow"&gt;in&lt;/span&gt; &lt;span class="n"&gt;session_data&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+        &lt;span class="n"&gt;session_data&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;cookies&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="nb"&gt;dict&lt;/span&gt;&lt;span class="p"&gt;((&lt;/span&gt;&lt;span class="n"&gt;key&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;encode&lt;/span&gt;&lt;span class="p"&gt;(),&lt;/span&gt; &lt;span class="n"&gt;val&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="n"&gt;key&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;val&lt;/span&gt; &lt;span class="ow"&gt;in&lt;/span&gt;
+                &lt;span class="n"&gt;session_data&lt;/span&gt;&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;cookies&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;items&lt;/span&gt;&lt;span class="p"&gt;())&lt;/span&gt;
+
+    &lt;span class="k"&gt;return&lt;/span&gt; &lt;span class="n"&gt;req&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;session&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="o"&gt;**&lt;/span&gt;&lt;span class="n"&gt;session_data&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;And so&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="err"&gt;$&lt;/span&gt; &lt;span class="n"&gt;python&lt;/span&gt; &lt;span class="n"&gt;test&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;py&lt;/span&gt;
+&lt;span class="n"&gt;Success&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;&lt;strong&gt;!&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;All the code is on a &lt;a href="https://gist.github.com/2660997"&gt;gist&lt;/a&gt;.&lt;/p&gt;
+&lt;h1 id="update-pickling-can-also-work"&gt;Update: Pickling can also work&lt;/h1&gt;
+&lt;p&gt;As &lt;em&gt;Daslch&lt;/em&gt; pointed out in his &lt;a href="http://www.reddit.com/r/Python/comments/pv1lf/serializing_pythonrequests_session_objects_for/c3sh5bb"&gt;comment&lt;/a&gt; on reddit, by implementing the pickle
+protocol on the Session class, we can get pickling to work. From the
+&lt;a href="http://docs.python.org/library/pickle.html#object.__getstate__"&gt;documentation&lt;/a&gt;, we need two methods, &lt;code&gt;__getstate__&lt;/code&gt; and &lt;code&gt;__setstate__&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;Adding those methods as follows to &lt;code&gt;sessions.Session&lt;/code&gt; class&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;__getstate__&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="p"&gt;):&lt;/span&gt;
+    &lt;span class="n"&gt;attrs&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;headers&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;#39;cookies&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;#39;auth&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;#39;timeout&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;#39;proxies&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;#39;hooks&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+        &lt;span class="s"&gt;&amp;#39;params&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;#39;config&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s"&gt;&amp;#39;verify&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt;
+    &lt;span class="k"&gt;return&lt;/span&gt; &lt;span class="nb"&gt;dict&lt;/span&gt;&lt;span class="p"&gt;((&lt;/span&gt;&lt;span class="n"&gt;attr&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="nb"&gt;getattr&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;attr&lt;/span&gt;&lt;span class="p"&gt;))&lt;/span&gt; &lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="n"&gt;attr&lt;/span&gt; &lt;span class="ow"&gt;in&lt;/span&gt; &lt;span class="n"&gt;attrs&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+
+&lt;span class="k"&gt;def&lt;/span&gt; &lt;span class="nf"&gt;__setstate__&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;state&lt;/span&gt;&lt;span class="p"&gt;):&lt;/span&gt;
+    &lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="n"&gt;name&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;value&lt;/span&gt; &lt;span class="ow"&gt;in&lt;/span&gt; &lt;span class="n"&gt;state&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;items&lt;/span&gt;&lt;span class="p"&gt;():&lt;/span&gt;
+        &lt;span class="nb"&gt;setattr&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;name&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;value&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+
+    &lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;poolmanager&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;PoolManager&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;
+        &lt;span class="n"&gt;num_pools&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;config&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;get&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;pool_connections&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;),&lt;/span&gt;
+        &lt;span class="n"&gt;maxsize&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="bp"&gt;self&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;config&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;get&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s"&gt;&amp;#39;pool_maxsize&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+    &lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;with this as the version of &lt;code&gt;serializer.py&lt;/code&gt; that uses pickle, we do get a
+&lt;code&gt;Success&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;The creation of new poolmanager in &lt;code&gt;__setstate__&lt;/code&gt; is a piece of code copied from
+&lt;code&gt;__init__&lt;/code&gt; of the same class. This should probably be turned to a method to
+avoid code repetition.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Update 2&lt;/strong&gt;: Created an &lt;a href="https://github.com/kennethreitz/requests/issues/439"&gt;issue&lt;/a&gt; about this.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Update 3&lt;/strong&gt;: This has been merged and Session objects are pickleable as of
+version 0.10.3. See &lt;a href="https://github.com/kennethreitz/requests/blob/develop/HISTORY.rst"&gt;requests history&lt;/a&gt;.&lt;/p&gt;</summary><category term="python"></category><category term="python-requests"></category><category term="python-pickle"></category></entry><entry><title>Dependency graph of all installed gems</title><link href="http://sharats.me/dependency-graph-of-all-installed-gems.html" rel="alternate"></link><updated>2011-09-30T00:00:00+05:30</updated><author><name>Shrikant Sharat Kandula</name></author><id>tag:sharats.me,2011-09-30:dependency-graph-of-all-installed-gems.html</id><summary type="html">&lt;p&gt;Every other application written using ruby these days seem to come with this
+installation instruction:&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="n"&gt;gem&lt;/span&gt; &lt;span class="n"&gt;install&lt;/span&gt; &lt;span class="n"&gt;my&lt;/span&gt;&lt;span class="o"&gt;-&lt;/span&gt;&lt;span class="n"&gt;super&lt;/span&gt;&lt;span class="o"&gt;-&lt;/span&gt;&lt;span class="n"&gt;awesome&lt;/span&gt;&lt;span class="o"&gt;-&lt;/span&gt;&lt;span class="n"&gt;app&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;and then going on to describing how awesome the app is. But, installing the app
+in the above way installs all its bazillion dependencies, which, unfortunately
+are not uninstalled when you uninstall this app with&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="n"&gt;gem&lt;/span&gt; &lt;span class="n"&gt;uninstall&lt;/span&gt; &lt;span class="n"&gt;the&lt;/span&gt;&lt;span class="o"&gt;-&lt;/span&gt;&lt;span class="n"&gt;same&lt;/span&gt;&lt;span class="o"&gt;-&lt;/span&gt;&lt;span class="n"&gt;damn&lt;/span&gt;&lt;span class="o"&gt;-&lt;/span&gt;&lt;span class="n"&gt;app&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;And so, you have huge mess of gems installed which you have no idea why they
+are there in the first place. Finding out stale gems that are left out because
+of this can be a pain.&lt;/p&gt;
+&lt;p&gt;So, I decided a neat flowchart visualising the dependency relationships between
+all the installed jars would give me a picture. And yes, it did.&lt;/p&gt;
+&lt;p&gt;&lt;img alt="Gem dependency graph" src="http://media.tumblr.com/tumblr_lsce42kJLi1qap0nb.png" /&gt;&lt;/p&gt;
+&lt;p&gt;Here's how I got the flowchart: (save this in say, gem-graph.sh)&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="c"&gt;#!/bin/bash&lt;/span&gt;
+
+gem list &lt;span class="se"&gt;\&lt;/span&gt;
+    | cut -d&lt;span class="se"&gt;\ &lt;/span&gt; -f1 &lt;span class="se"&gt;\&lt;/span&gt;
+    | xargs gem dep &lt;span class="se"&gt;\&lt;/span&gt;
+    | awk &lt;span class="s1"&gt;&amp;#39;\&lt;/span&gt;
+&lt;span class="s1"&gt;        BEGIN { print &amp;quot;digraph gems {&amp;quot; } \&lt;/span&gt;
+&lt;span class="s1"&gt;        /^Gem / { cur=$2; sub(/-[0-9\.]+$/, &amp;quot;&amp;quot;, cur); print &amp;quot;  \&amp;quot;&amp;quot; cur &amp;quot;\&amp;quot;;&amp;quot; } \&lt;/span&gt;
+&lt;span class="s1"&gt;        ! /^Gem / &amp;amp;&amp;amp; $0 != &amp;quot;&amp;quot; { print &amp;quot;  \&amp;quot;&amp;quot; cur &amp;quot;\&amp;quot; -&amp;gt; \&amp;quot;&amp;quot; $1 &amp;quot;\&amp;quot;;&amp;quot; } \&lt;/span&gt;
+&lt;span class="s1"&gt;        END { print &amp;quot;}&amp;quot; }&amp;#39;&lt;/span&gt; &lt;span class="se"&gt;\&lt;/span&gt;
+    | dot -Tpng -o gems.png
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Assuming you have &lt;a href="http://www.graphviz.org/"&gt;GraphViz&lt;/a&gt; installed, you can just
+do&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="n"&gt;chmod&lt;/span&gt; &lt;span class="o"&gt;+&lt;/span&gt;&lt;span class="n"&gt;x&lt;/span&gt; &lt;span class="n"&gt;gem&lt;/span&gt;&lt;span class="o"&gt;-&lt;/span&gt;&lt;span class="n"&gt;graph&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;sh&lt;/span&gt;
+&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;gem&lt;/span&gt;&lt;span class="o"&gt;-&lt;/span&gt;&lt;span class="n"&gt;graph&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;sh&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;and the graph will be saved in gems.png. Happy gem cleaning :).&lt;/p&gt;</summary><category term="ruby"></category><category term="gem"></category><category term="graphviz"></category><category term="bash"></category><category term="tips"></category></entry><entry><title>Vim undo breaks with auto-close plugins</title><link href="http://sharats.me/vim-undo-breaks-with-auto-close-plugins.html" rel="alternate"></link><updated>2011-09-28T00:00:00+05:30</updated><author><name>Shrikant Sharat Kandula</name></author><id>tag:sharats.me,2011-09-28:vim-undo-breaks-with-auto-close-plugins.html</id><summary type="html">&lt;h1 id="prelude"&gt;Prelude&lt;/h1&gt;
+&lt;p&gt;If you've used IDEs or other heavy editors ever in your life, you'd know how
+nice it is to have parentheses and brackets to get auto-closed. If you don't
+know what I'm talking about, its a feature usually present in IDEs like eclipse
+and easily recreated in vim with mappings like&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="nb"&gt;inoremap&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt; &lt;span class="p"&gt;()&amp;lt;&lt;/span&gt;Left&lt;span class="p"&gt;&amp;gt;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Of course, that's just a simple taste. There are vastly complicated plugins that
+achieve this.&lt;/p&gt;
+&lt;p&gt;Now, what's really super annoying about these plugins is that they tend to
+break vim's amazingly powerful undo functionality. In other words, if you are
+using an auto-close plugin, chances are, you can't rely on vim's undo anymore.&lt;/p&gt;
+&lt;p&gt;Debugging this and finding the cause has been on my todo list for quite some
+time and a few days ago, I finally sat down to explore. I am writing my
+experience here. First, a simple test case to see if the auto-close plugin you
+use breaks undo, open vim (a blank file) and hit the following keys:&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="nx"&gt;iabc&lt;/span&gt;&lt;span class="p"&gt;{&lt;/span&gt;&lt;span class="o"&gt;&amp;lt;&lt;/span&gt;&lt;span class="nx"&gt;CR&lt;/span&gt;&lt;span class="o"&gt;&amp;gt;&amp;lt;&lt;/span&gt;&lt;span class="nx"&gt;ESC&lt;/span&gt;&lt;span class="o"&gt;&amp;gt;&lt;/span&gt;&lt;span class="nx"&gt;u&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Where instead of &lt;code&gt;&amp;lt;CR&amp;gt;&lt;/code&gt; you'd hit the return key and instead of &lt;code&gt;&amp;lt;ESC&amp;gt;&lt;/code&gt; you'd
+hit the Escape key. Decent knowledge of vim should tell you that after the above
+keys, you should end up with a blank file again. Right?&lt;/p&gt;
+&lt;p&gt;If instead, you see a closing brace dangling in the second line, your undo is
+broken. MUHAHAHAHAHA! You can't rely on undo anymore until you get rid of that
+one plugin!&lt;/p&gt;
+&lt;h1 id="whats-going-on"&gt;What's going on?&lt;/h1&gt;
+&lt;p&gt;So, experimenting with many auto-close plugins and reading the source of at
+least 3 of those, I say there are basically two different implementations of
+this functionality, which all these plugins use. The first one is pretty much
+what was shown at the start of this article,&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="nb"&gt;inoremap&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt; &lt;span class="p"&gt;()&amp;lt;&lt;/span&gt;Left&lt;span class="p"&gt;&amp;gt;&lt;/span&gt;
+&lt;span class="c"&gt;&amp;quot; or&lt;/span&gt;
+&lt;span class="nb"&gt;inoremap&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt; &lt;span class="p"&gt;&amp;lt;&lt;/span&gt;C&lt;span class="p"&gt;-&lt;/span&gt;&lt;span class="k"&gt;r&lt;/span&gt;&lt;span class="p"&gt;&amp;gt;=&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;()\&amp;lt;Left&amp;gt;&amp;quot;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;I'm going to call this class of plugins, the critters. These do &lt;em&gt;not&lt;/em&gt; break your
+undo. The next class of implementations, that do break your undo, the beasts, do
+a bit of dark sorcery with stuff like&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="nb"&gt;inoremap&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt; &lt;span class="p"&gt;&amp;lt;&lt;/span&gt;C&lt;span class="p"&gt;-&lt;/span&gt;&lt;span class="k"&gt;r&lt;/span&gt;&lt;span class="p"&gt;&amp;gt;=&lt;/span&gt;MyAwesomePairInseter&lt;span class="p"&gt;()&amp;lt;&lt;/span&gt;CR&lt;span class="p"&gt;&amp;gt;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;There is no dark sorcery here that is immediately apparent. The real sorcery is
+&lt;em&gt;inside&lt;/em&gt; that function, where a call to &lt;code&gt;setline()&lt;/code&gt; function is made to replace
+your current line to contain the parentheses text at the cursor. Doesn't make
+sense?  Don't worry, you'll get it soon enough.&lt;/p&gt;
+&lt;h1 id="which-plugins-name-them"&gt;Which plugins? Name them!&lt;/h1&gt;
+&lt;p&gt;Here are a few ones that break undo:&lt;/p&gt;
+&lt;h2 id="beasts"&gt;Beasts&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;https://github.com/vim-scripts/AutoClose&lt;/li&gt;
+&lt;li&gt;https://github.com/Raimondi/delimitMate&lt;/li&gt;
+&lt;li&gt;https://github.com/Townk/vim-autoclose&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;and these don't break undo&lt;/p&gt;
+&lt;h2 id="critters"&gt;Critters&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;https://github.com/vim-scripts/ClosePairs&lt;/li&gt;
+&lt;li&gt;https://github.com/vim-scripts/simple-pairs&lt;/li&gt;
+&lt;li&gt;https://github.com/vim-scripts/Auto-Pairs&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;An initial look at them and you can tell, the ones that break undo are actually
+more popular and have a relatively larger code base. So why doesn't anyone
+complain about breaking undo?  I think they do and I believe the root cause is
+a bug with &lt;em&gt;vim&lt;/em&gt; itself.&lt;/p&gt;
+&lt;p&gt;The main difference in usability among these classes is again to do with undo.
+In the beasts, typing a brace does not start a new undo action, but it does in
+the critters (like hitting a &lt;code&gt;&amp;lt;C-g&amp;gt;u&lt;/code&gt;). This might actually be playing a role in
+why undo breaks in beasts only, but the exact reason escapes me.&lt;/p&gt;
+&lt;h1 id="a-reproducible-test-case"&gt;A reproducible test case&lt;/h1&gt;
+&lt;p&gt;I wanted to reproduce this problem with a vanilla vim with no custom
+configuration (except for &lt;code&gt;nocompatible&lt;/code&gt;). So, I checked out the latest version
+(vim73-353) from the mercurial repository, compiled (with python, ruby and
+usual shit) and opened it, with no plugins and a simple vimrc as the following:&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="k"&gt;set&lt;/span&gt; &lt;span class="nb"&gt;nocompatible&lt;/span&gt;
+
+&lt;span class="nb"&gt;inoremap&lt;/span&gt; &lt;span class="p"&gt;&amp;lt;&lt;/span&gt;buffer&lt;span class="p"&gt;&amp;gt;&lt;/span&gt; &lt;span class="p"&gt;&amp;lt;&lt;/span&gt;&lt;span class="k"&gt;silent&lt;/span&gt;&lt;span class="p"&gt;&amp;gt;&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt; &lt;span class="p"&gt;&amp;lt;&lt;/span&gt;C&lt;span class="p"&gt;-&lt;/span&gt;R&lt;span class="p"&gt;&amp;gt;=&amp;lt;&lt;/span&gt;SID&lt;span class="p"&gt;&amp;gt;&lt;/span&gt;InsertPair&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;(&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s2"&gt;&amp;quot;)&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;)&amp;lt;&lt;/span&gt;CR&lt;span class="p"&gt;&amp;gt;&lt;/span&gt;
+&lt;span class="nb"&gt;inoremap&lt;/span&gt; &lt;span class="p"&gt;&amp;lt;&lt;/span&gt;buffer&lt;span class="p"&gt;&amp;gt;&lt;/span&gt; &lt;span class="p"&gt;&amp;lt;&lt;/span&gt;&lt;span class="k"&gt;silent&lt;/span&gt;&lt;span class="p"&gt;&amp;gt;&lt;/span&gt; [ &lt;span class="p"&gt;&amp;lt;&lt;/span&gt;C&lt;span class="p"&gt;-&lt;/span&gt;R&lt;span class="p"&gt;&amp;gt;=&amp;lt;&lt;/span&gt;SID&lt;span class="p"&gt;&amp;gt;&lt;/span&gt;InsertPair&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;[&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s2"&gt;&amp;quot;]&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;)&amp;lt;&lt;/span&gt;CR&lt;span class="p"&gt;&amp;gt;&lt;/span&gt;
+&lt;span class="nb"&gt;inoremap&lt;/span&gt; &lt;span class="p"&gt;&amp;lt;&lt;/span&gt;buffer&lt;span class="p"&gt;&amp;gt;&lt;/span&gt; &lt;span class="p"&gt;&amp;lt;&lt;/span&gt;&lt;span class="k"&gt;silent&lt;/span&gt;&lt;span class="p"&gt;&amp;gt;&lt;/span&gt; { &lt;span class="p"&gt;&amp;lt;&lt;/span&gt;C&lt;span class="p"&gt;-&lt;/span&gt;R&lt;span class="p"&gt;&amp;gt;=&amp;lt;&lt;/span&gt;SID&lt;span class="p"&gt;&amp;gt;&lt;/span&gt;InsertPair&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;{&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="s2"&gt;&amp;quot;}&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;)&amp;lt;&lt;/span&gt;CR&lt;span class="p"&gt;&amp;gt;&lt;/span&gt;
+
+&lt;span class="k"&gt;function&lt;/span&gt;&lt;span class="p"&gt;!&lt;/span&gt; &lt;span class="k"&gt;s&lt;/span&gt;:InsertPair&lt;span class="p"&gt;(&lt;/span&gt;opener&lt;span class="p"&gt;,&lt;/span&gt; closer&lt;span class="p"&gt;)&lt;/span&gt;
+    &lt;span class="k"&gt;let&lt;/span&gt; &lt;span class="k"&gt;l&lt;/span&gt;:save_ve &lt;span class="p"&gt;=&lt;/span&gt; &amp;amp;&lt;span class="k"&gt;ve&lt;/span&gt;
+    &lt;span class="k"&gt;set&lt;/span&gt; &lt;span class="k"&gt;ve&lt;/span&gt;&lt;span class="p"&gt;=&lt;/span&gt;&lt;span class="k"&gt;all&lt;/span&gt;
+
+    &lt;span class="k"&gt;call&lt;/span&gt; &lt;span class="k"&gt;s&lt;/span&gt;:InsertStringAtCursor&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="k"&gt;a&lt;/span&gt;:closer&lt;span class="p"&gt;)&lt;/span&gt;
+
+    exec &lt;span class="s2"&gt;&amp;quot;set ve=&amp;quot;&lt;/span&gt; . &lt;span class="k"&gt;l&lt;/span&gt;:save_ve
+    &lt;span class="k"&gt;return&lt;/span&gt; &lt;span class="k"&gt;a&lt;/span&gt;:opener
+&lt;span class="k"&gt;endfunction&lt;/span&gt;
+
+&lt;span class="k"&gt;function&lt;/span&gt;&lt;span class="p"&gt;!&lt;/span&gt; &lt;span class="k"&gt;s&lt;/span&gt;:InsertStringAtCursor&lt;span class="p"&gt;(&lt;/span&gt;str&lt;span class="p"&gt;)&lt;/span&gt;
+    &lt;span class="k"&gt;let&lt;/span&gt; &lt;span class="k"&gt;l&lt;/span&gt;:line &lt;span class="p"&gt;=&lt;/span&gt; getline&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s1"&gt;&amp;#39;.&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+    &lt;span class="k"&gt;let&lt;/span&gt; &lt;span class="k"&gt;l&lt;/span&gt;:column &lt;span class="p"&gt;=&lt;/span&gt; &lt;span class="k"&gt;col&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s1"&gt;&amp;#39;.&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;&lt;span class="m"&gt;-2&lt;/span&gt;
+
+    &lt;span class="k"&gt;if&lt;/span&gt; &lt;span class="k"&gt;l&lt;/span&gt;:column &lt;span class="p"&gt;&amp;lt;&lt;/span&gt; &lt;span class="m"&gt;0&lt;/span&gt;
+        &lt;span class="k"&gt;call&lt;/span&gt; setline&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s1"&gt;&amp;#39;.&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="k"&gt;a&lt;/span&gt;:str . &lt;span class="k"&gt;l&lt;/span&gt;:line&lt;span class="p"&gt;)&lt;/span&gt;
+    &lt;span class="k"&gt;else&lt;/span&gt;
+        &lt;span class="k"&gt;call&lt;/span&gt; setline&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s1"&gt;&amp;#39;.&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="k"&gt;l&lt;/span&gt;:line[:&lt;span class="k"&gt;l&lt;/span&gt;:column] . &lt;span class="k"&gt;a&lt;/span&gt;:str . &lt;span class="k"&gt;l&lt;/span&gt;:line[&lt;span class="k"&gt;l&lt;/span&gt;:column&lt;span class="p"&gt;+&lt;/span&gt;&lt;span class="m"&gt;1&lt;/span&gt;:]&lt;span class="p"&gt;)&lt;/span&gt;
+    &lt;span class="k"&gt;endif&lt;/span&gt;
+&lt;span class="k"&gt;endfunction&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Which is a stripped down version of the auto-close functionality implemented in
+townk's auto-close plugin. And opened vim&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="n"&gt;vim&lt;/span&gt; &lt;span class="o"&gt;-&lt;/span&gt;&lt;span class="n"&gt;u&lt;/span&gt; &lt;span class="n"&gt;undo&lt;/span&gt;&lt;span class="o"&gt;-&lt;/span&gt;&lt;span class="n"&gt;breaker&lt;/span&gt;&lt;span class="o"&gt;-&lt;/span&gt;&lt;span class="n"&gt;vimrc&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;and did the test here. Boom, a dangling brace character.&lt;/p&gt;
+&lt;p&gt;For all I know, its the call to &lt;code&gt;setline()&lt;/code&gt; that's making all the difference.
+But I could be entirely wrong with that. I say this because that is the major
+difference between the two classes of implementations.&lt;/p&gt;
+&lt;h1 id="next"&gt;Next?&lt;/h1&gt;
+&lt;p&gt;I use persistent-undo in vim73 and heavily depend on it. Combined with the
+&lt;a href="http://sjl.bitbucket.org/gundo.vim"&gt;gundo&lt;/a&gt; plugin by &lt;a href="http://stevelosh.com"&gt;Steve Losh&lt;/a&gt;, I get a kind of nicely visualized version
+history that is centric to every file, which is quite handy in its own right.&lt;/p&gt;
+&lt;p&gt;So, if there are others who have faced this, have a fix for it, perhaps a patch
+to vim, or if there is already a bug in vim's bug database on this, let me know.&lt;/p&gt;
+&lt;p&gt;Thanks for reading.&lt;/p&gt;</summary><category term="vim"></category><category term="vim-plugins"></category></entry><entry><title>Installing Crunchbang Linux on my old lappy</title><link href="http://sharats.me/installing-crunchbang-linux-on-my-old-lappy.html" rel="alternate"></link><updated>2011-02-25T00:00:00+05:30</updated><author><name>Shrikant Sharat Kandula</name></author><id>tag:sharats.me,2011-02-25:installing-crunchbang-linux-on-my-old-lappy.html</id><summary type="html">&lt;p&gt;I managed to install Crunchbang linux, the recently released Stetler, after
+reading quite a positive review (I don't remember where). I am really liking
+it, especially the openbox desktop environment. Also, coming from a lot of
+experience on ubuntu, finding crunchbang look so bare-bones and simple, yet so
+customizable is very refreshing. I will put my experience with installing it
+and my initial thoughts, before I forget them :).&lt;/p&gt;
+&lt;p&gt;Now my laptop's got a defective and unreliable disk drive, so I chose to
+install crunchbang from usb with the help of unetbootin. After downloading the
+&lt;code&gt;#!&lt;/code&gt; (crunchbang) iso file, I fired up unetbootin on my windows vista (on the
+same laptop) and setup my 1GB pen drive to be bootable. After that, I had to
+create a couple of symlinks (using cygwin) on the usb drive as following&lt;/p&gt;
+&lt;div class="codehilite"&gt;&lt;pre&gt;&lt;span class="n"&gt;ln&lt;/span&gt; &lt;span class="o"&gt;-&lt;/span&gt;&lt;span class="n"&gt;s&lt;/span&gt; &lt;span class="n"&gt;live&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;vmlinuz1&lt;/span&gt; &lt;span class="n"&gt;vmlinuz&lt;/span&gt;
+&lt;span class="n"&gt;ln&lt;/span&gt; &lt;span class="o"&gt;-&lt;/span&gt;&lt;span class="n"&gt;s&lt;/span&gt; &lt;span class="n"&gt;live&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;initrd1&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;img&lt;/span&gt; &lt;span class="n"&gt;initrd&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;img&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;After that, the boot was pretty smooth, and I had to choose the graphical
+installer as the text based installer wouldn't load, which I have no idea why.&lt;/p&gt;
+&lt;p&gt;Another interesting thing that happened was that at the end of the
+installation, #! asked me if I wanted to install the grub boot loader, and that
+it detects windows as another OS on the machine. However the grub it installed
+does not list windows in the boot menu. I asked a question about this on
+unix.stackexchange.com and got to know that a simple sudo update-grub added the
+windows item to my boot menu. Not a major set-back, but still.&lt;/p&gt;
+&lt;p&gt;After that, using the OS is nothing but a pure pleasure. It feels amazingly
+snappy and super productive. The conky based hotkey reference on the desktop is
+a killer thing to look for. Oh, and dropbox installation is easier than on my
+ubuntu box, if you use dropbox that is. Chrome, my browser of choice, is the
+default browser, what more can I ask? Awesome distribution. I am looking
+forward to exploring even more with my shiny new #!, and I seriously recommend
+you give it a try :)&lt;/p&gt;</summary><category term="crunchbang"></category><category term="linux"></category></entry><entry><title>A tasty vim configuration setup with Vimpire and Pathogen</title><link href="http://sharats.me/a-tasty-vim-configuration-setup-with-vimpire-and-pathogen.html" rel="alternate"></link><updated>2010-12-14T00:00:00+05:30</updated><author><name>Shrikant Sharat Kandula</name></author><id>tag:sharats.me,2010-12-14:a-tasty-vim-configuration-setup-with-vimpire-and-pathogen.html</id><summary type="html">&lt;p&gt;Managing vim plugins has always been a hassle. Until pathogen came along. If
+you are using vim with quite a few vim plugins, then you should be using
+pathogen, if you are not, you are seriously depriving yourself of sanity. No,
+seriously. You should.&lt;/p&gt;
+&lt;p&gt;So, I assume you are also versioning your dotvim directory, like on github or
+bitbucket with git or mercurial respectively. If you are not, then you should.
+You really really should. If you are going to ask why, go ahead, I will refer
+to you here on as the douche-bag.&lt;/p&gt;
+&lt;p&gt;If your answer was no to both of the above, you better get the hell out of here
+before I get my lawn mowers.&lt;/p&gt;
+&lt;p&gt;Ok, If you tried to version your dotvim directory, but the plugin directories
+inside pathogen's bundle directory are repositories themselves, you won't be
+very happy. You either have to version all the .git and .hg and what not
+version directories from the plugins, or you just have to ignore them all and
+forgo versioning for individual plugins. But if you chose the latter, in which
+case versioning your dotvim will be easy, updating your plugins is a serious
+pain.&lt;/p&gt;
+&lt;p&gt;So, recently, http://vim-scripts.org came up and so did scripts like vundle and
+vim-update-bundles, as listed on the tools page on http://vim-scripts.org.
+These let you list the plugins you use in your vimrc file and they take care of
+keeping them up to date. The advantage is that you can version your dotvim
+directory, and wherever you clone it, you can just run the script used and all
+your plugins are set up, the latest versions of them, just like that. Awesome!&lt;/p&gt;
+&lt;p&gt;Vimpire isn't much different from those tools. In fact, it is very similar to
+vim-update-bundles in functionality, but there are 2 main differences. First
+off, it is written in python. I won't spell out the implications of that. But,
+it is ruby-less. Second, it supports hg. Yay! So, you can get plugins not just
+from git, but also from hg.&lt;/p&gt;
+&lt;p&gt;How to set it up and how to use it can be seen on the bitbucket page, via the
+README file.&lt;/p&gt;
+&lt;p&gt;Hosted at http://bitbucket.org/sharat87/vimpire/src&lt;/p&gt;
+&lt;p&gt;Please note that this is still beta. Tested on windows 7. I am waiting to get
+back to my love, ubuntu, but until then, no idea if it works on unix like
+machines.&lt;/p&gt;
+&lt;p&gt;Update: The latest version works perfectly with ubuntu too!&lt;/p&gt;</summary><category term="vim"></category><category term="vim-plugins"></category><category term="vimpire"></category><category term="pathogen"></category></entry></feed>

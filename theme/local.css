@@ -1,0 +1,97 @@
+@import url(http://fonts.googleapis.com/css?family=Inconsolata|PT+Sans:400,700,400italic,700italic);
+
+html, body {
+    margin: 0;
+    padding: 0;
+    color: #222;
+    background-color: #F5F5F5;
+}
+
+body {
+    font-size: 20px;
+    font-family: 'PT Sans', serif;
+}
+
+header.top {
+    padding: 0 24px;
+    background-color: #2E435E;
+    background-image: linear-gradient(top, #2E435E, #172E50);
+    background-image: -moz-linear-gradient(top, #2E435E, #172E50);
+    background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#2E435E), to(#172E50));
+    background-image: -o-linear-gradient(top, #2E435E, #172E50);
+    background-image: -ms-linear-gradient(top, #2E435E, #172E50);
+    background-repeat: repeat-x;
+    -moz-box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25), inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25), inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+}
+
+header.top a {
+    display: inline-block;
+    color: #DDD;
+    padding: 6px 12px;
+    text-decoration: none;
+}
+
+header.top a:hover {
+    color: white;
+}
+
+code, pre {
+    font-family: Inconsolata, monospace;
+    line-height: 1.5em;
+}
+
+pre {
+    padding: 6px 18px;
+    background-color: #EEE;
+}
+
+hr {
+    border-width: 1px 0 0 0;
+    border-color: #DDD;
+    border-style: solid;
+}
+
+a {
+    color: #4986B8;
+}
+
+h1 {
+    font-size: 1.7em;
+}
+
+h1, h2, h3 {
+    margin: 36px 0 6px;
+    font-weight: normal;
+}
+
+body > section {
+    width: 960px;
+    margin: 18px auto 0;
+}
+
+footer {
+    text-align: center;
+}
+
+.summary-title {
+    font-size: 1.3em;
+    font-weight: normal;
+    margin: 12px 0 0;
+}
+
+.summary pre, .summary h1 {
+    display: none;
+}
+
+.social {
+    text-align: center;
+}
+
+.social a {
+    opacity: .9;
+}
+
+.social a:hover {
+    opacity: 1;
+}

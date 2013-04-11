@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang=en>
+<head>
+    <meta charset=utf-8>
+    <title>(shrikant-sharat)</title>
+    <meta name=author content="Shrikant Sharat Kandula">
+
+    <link href="./theme/local.css" rel=stylesheet>
+    <link href="./theme/pygments.css" rel=stylesheet>
+
+<body>
+
+<header class=top>
+    <a class=brand href=".">(shrikant-sharat)</a>
+    <div style=float:right>
+                <a href="./about.html">About</a>
+                <a href="./labs.html">Labs</a>
+                <a href="./archives.html">Archives</a>
+                <a href="./tags.html">Tags</a>
+                <a href="./feeds/all.atom.xml">Atom Feed</a>
+            </div>
+</header>
+
+<section>
+    <article>
+        <article>
+    <header>
+        <h1>Dependency graph of all installed gems</h1>
+        <time>30 Sep, 2011</time>
+
+
+
+    </header>
+
+    <p><p>Every other application written using ruby these days seem to come with this
+installation instruction:</p>
+<div class="codehilite"><pre><span class="n">gem</span> <span class="n">install</span> <span class="n">my</span><span class="o">-</span><span class="n">super</span><span class="o">-</span><span class="n">awesome</span><span class="o">-</span><span class="n">app</span>
+</pre></div>
+
+
+<p>and then going on to describing how awesome the app is. But, installing the app
+in the above way installs all its bazillion dependencies, which, unfortunately
+are not uninstalled when you uninstall this app with</p>
+<div class="codehilite"><pre><span class="n">gem</span> <span class="n">uninstall</span> <span class="n">the</span><span class="o">-</span><span class="n">same</span><span class="o">-</span><span class="n">damn</span><span class="o">-</span><span class="n">app</span>
+</pre></div>
+
+
+<p>And so, you have huge mess of gems installed which you have no idea why they
+are there in the first place. Finding out stale gems that are left out because
+of this can be a pain.</p>
+<p>So, I decided a neat flowchart visualising the dependency relationships between
+all the installed jars would give me a picture. And yes, it did.</p>
+<p><img alt="Gem dependency graph" src="http://media.tumblr.com/tumblr_lsce42kJLi1qap0nb.png" /></p>
+<p>Here's how I got the flowchart: (save this in say, gem-graph.sh)</p>
+<div class="codehilite"><pre><span class="c">#!/bin/bash</span>
+
+gem list <span class="se">\</span>
+    | cut -d<span class="se">\ </span> -f1 <span class="se">\</span>
+    | xargs gem dep <span class="se">\</span>
+    | awk <span class="s1">&#39;\</span>
+<span class="s1">        BEGIN { print &quot;digraph gems {&quot; } \</span>
+<span class="s1">        /^Gem / { cur=$2; sub(/-[0-9\.]+$/, &quot;&quot;, cur); print &quot;  \&quot;&quot; cur &quot;\&quot;;&quot; } \</span>
+<span class="s1">        ! /^Gem / &amp;&amp; $0 != &quot;&quot; { print &quot;  \&quot;&quot; cur &quot;\&quot; -&gt; \&quot;&quot; $1 &quot;\&quot;;&quot; } \</span>
+<span class="s1">        END { print &quot;}&quot; }&#39;</span> <span class="se">\</span>
+    | dot -Tpng -o gems.png
+</pre></div>
+
+
+<p>Assuming you have <a href="http://www.graphviz.org/">GraphViz</a> installed, you can just
+do</p>
+<div class="codehilite"><pre><span class="n">chmod</span> <span class="o">+</span><span class="n">x</span> <span class="n">gem</span><span class="o">-</span><span class="n">graph</span><span class="p">.</span><span class="n">sh</span>
+<span class="p">.</span><span class="o">/</span><span class="n">gem</span><span class="o">-</span><span class="n">graph</span><span class="p">.</span><span class="n">sh</span>
+</pre></div>
+
+
+<p>and the graph will be saved in gems.png. Happy gem cleaning :).</p></p>
+
+    <hr>
+
+        <h2>Comments</h2>
+    <div id=disqus_thread></div>
+<script>
+    (function() {
+        var s = document.createElement('script');
+        s.async = true;
+        s.src = 'http://sharats-me.disqus.com/embed.js';
+        document.body.appendChild(s);
+    }());
+</script>
+<noscript>Please enable JavaScript to view the <a
+        href="http://disqus.com/?ref_noscript">comments powered by Disqus</a>.
+</noscript>    </article>
+    </article>
+    <footer>
+        <br>
+        <p><a href=".">(shrikant-sharat)</a> &copy; Shrikant Sharat Kandula 2013
+        </p>
+    </footer>
+</section>
+
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>

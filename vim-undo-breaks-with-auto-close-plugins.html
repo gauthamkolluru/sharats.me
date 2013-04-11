@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang=en>
+<head>
+    <meta charset=utf-8>
+    <title>(shrikant-sharat)</title>
+    <meta name=author content="Shrikant Sharat Kandula">
+
+    <link href="./theme/local.css" rel=stylesheet>
+    <link href="./theme/pygments.css" rel=stylesheet>
+
+<body>
+
+<header class=top>
+    <a class=brand href=".">(shrikant-sharat)</a>
+    <div style=float:right>
+                <a href="./about.html">About</a>
+                <a href="./labs.html">Labs</a>
+                <a href="./archives.html">Archives</a>
+                <a href="./tags.html">Tags</a>
+                <a href="./feeds/all.atom.xml">Atom Feed</a>
+            </div>
+</header>
+
+<section>
+    <article>
+        <article>
+    <header>
+        <h1>Vim undo breaks with auto-close plugins</h1>
+        <time>28 Sep, 2011</time>
+
+
+
+    </header>
+
+    <p><h1 id="prelude">Prelude</h1>
+<p>If you've used IDEs or other heavy editors ever in your life, you'd know how
+nice it is to have parentheses and brackets to get auto-closed. If you don't
+know what I'm talking about, its a feature usually present in IDEs like eclipse
+and easily recreated in vim with mappings like</p>
+<div class="codehilite"><pre><span class="nb">inoremap</span> <span class="p">(</span> <span class="p">()&lt;</span>Left<span class="p">&gt;</span>
+</pre></div>
+
+
+<p>Of course, that's just a simple taste. There are vastly complicated plugins that
+achieve this.</p>
+<p>Now, what's really super annoying about these plugins is that they tend to
+break vim's amazingly powerful undo functionality. In other words, if you are
+using an auto-close plugin, chances are, you can't rely on vim's undo anymore.</p>
+<p>Debugging this and finding the cause has been on my todo list for quite some
+time and a few days ago, I finally sat down to explore. I am writing my
+experience here. First, a simple test case to see if the auto-close plugin you
+use breaks undo, open vim (a blank file) and hit the following keys:</p>
+<div class="codehilite"><pre><span class="nx">iabc</span><span class="p">{</span><span class="o">&lt;</span><span class="nx">CR</span><span class="o">&gt;&lt;</span><span class="nx">ESC</span><span class="o">&gt;</span><span class="nx">u</span>
+</pre></div>
+
+
+<p>Where instead of <code>&lt;CR&gt;</code> you'd hit the return key and instead of <code>&lt;ESC&gt;</code> you'd
+hit the Escape key. Decent knowledge of vim should tell you that after the above
+keys, you should end up with a blank file again. Right?</p>
+<p>If instead, you see a closing brace dangling in the second line, your undo is
+broken. MUHAHAHAHAHA! You can't rely on undo anymore until you get rid of that
+one plugin!</p>
+<h1 id="whats-going-on">What's going on?</h1>
+<p>So, experimenting with many auto-close plugins and reading the source of at
+least 3 of those, I say there are basically two different implementations of
+this functionality, which all these plugins use. The first one is pretty much
+what was shown at the start of this article,</p>
+<div class="codehilite"><pre><span class="nb">inoremap</span> <span class="p">(</span> <span class="p">()&lt;</span>Left<span class="p">&gt;</span>
+<span class="c">&quot; or</span>
+<span class="nb">inoremap</span> <span class="p">(</span> <span class="p">&lt;</span>C<span class="p">-</span><span class="k">r</span><span class="p">&gt;=</span><span class="s2">&quot;()\&lt;Left&gt;&quot;</span>
+</pre></div>
+
+
+<p>I'm going to call this class of plugins, the critters. These do <em>not</em> break your
+undo. The next class of implementations, that do break your undo, the beasts, do
+a bit of dark sorcery with stuff like</p>
+<div class="codehilite"><pre><span class="nb">inoremap</span> <span class="p">(</span> <span class="p">&lt;</span>C<span class="p">-</span><span class="k">r</span><span class="p">&gt;=</span>MyAwesomePairInseter<span class="p">()&lt;</span>CR<span class="p">&gt;</span>
+</pre></div>
+
+
+<p>There is no dark sorcery here that is immediately apparent. The real sorcery is
+<em>inside</em> that function, where a call to <code>setline()</code> function is made to replace
+your current line to contain the parentheses text at the cursor. Doesn't make
+sense?  Don't worry, you'll get it soon enough.</p>
+<h1 id="which-plugins-name-them">Which plugins? Name them!</h1>
+<p>Here are a few ones that break undo:</p>
+<h2 id="beasts">Beasts</h2>
+<ul>
+<li>https://github.com/vim-scripts/AutoClose</li>
+<li>https://github.com/Raimondi/delimitMate</li>
+<li>https://github.com/Townk/vim-autoclose</li>
+</ul>
+<p>and these don't break undo</p>
+<h2 id="critters">Critters</h2>
+<ul>
+<li>https://github.com/vim-scripts/ClosePairs</li>
+<li>https://github.com/vim-scripts/simple-pairs</li>
+<li>https://github.com/vim-scripts/Auto-Pairs</li>
+</ul>
+<p>An initial look at them and you can tell, the ones that break undo are actually
+more popular and have a relatively larger code base. So why doesn't anyone
+complain about breaking undo?  I think they do and I believe the root cause is
+a bug with <em>vim</em> itself.</p>
+<p>The main difference in usability among these classes is again to do with undo.
+In the beasts, typing a brace does not start a new undo action, but it does in
+the critters (like hitting a <code>&lt;C-g&gt;u</code>). This might actually be playing a role in
+why undo breaks in beasts only, but the exact reason escapes me.</p>
+<h1 id="a-reproducible-test-case">A reproducible test case</h1>
+<p>I wanted to reproduce this problem with a vanilla vim with no custom
+configuration (except for <code>nocompatible</code>). So, I checked out the latest version
+(vim73-353) from the mercurial repository, compiled (with python, ruby and
+usual shit) and opened it, with no plugins and a simple vimrc as the following:</p>
+<div class="codehilite"><pre><span class="k">set</span> <span class="nb">nocompatible</span>
+
+<span class="nb">inoremap</span> <span class="p">&lt;</span>buffer<span class="p">&gt;</span> <span class="p">&lt;</span><span class="k">silent</span><span class="p">&gt;</span> <span class="p">(</span> <span class="p">&lt;</span>C<span class="p">-</span>R<span class="p">&gt;=&lt;</span>SID<span class="p">&gt;</span>InsertPair<span class="p">(</span><span class="s2">&quot;(&quot;</span><span class="p">,</span> <span class="s2">&quot;)&quot;</span><span class="p">)&lt;</span>CR<span class="p">&gt;</span>
+<span class="nb">inoremap</span> <span class="p">&lt;</span>buffer<span class="p">&gt;</span> <span class="p">&lt;</span><span class="k">silent</span><span class="p">&gt;</span> [ <span class="p">&lt;</span>C<span class="p">-</span>R<span class="p">&gt;=&lt;</span>SID<span class="p">&gt;</span>InsertPair<span class="p">(</span><span class="s2">&quot;[&quot;</span><span class="p">,</span> <span class="s2">&quot;]&quot;</span><span class="p">)&lt;</span>CR<span class="p">&gt;</span>
+<span class="nb">inoremap</span> <span class="p">&lt;</span>buffer<span class="p">&gt;</span> <span class="p">&lt;</span><span class="k">silent</span><span class="p">&gt;</span> { <span class="p">&lt;</span>C<span class="p">-</span>R<span class="p">&gt;=&lt;</span>SID<span class="p">&gt;</span>InsertPair<span class="p">(</span><span class="s2">&quot;{&quot;</span><span class="p">,</span> <span class="s2">&quot;}&quot;</span><span class="p">)&lt;</span>CR<span class="p">&gt;</span>
+
+<span class="k">function</span><span class="p">!</span> <span class="k">s</span>:InsertPair<span class="p">(</span>opener<span class="p">,</span> closer<span class="p">)</span>
+    <span class="k">let</span> <span class="k">l</span>:save_ve <span class="p">=</span> &amp;<span class="k">ve</span>
+    <span class="k">set</span> <span class="k">ve</span><span class="p">=</span><span class="k">all</span>
+
+    <span class="k">call</span> <span class="k">s</span>:InsertStringAtCursor<span class="p">(</span><span class="k">a</span>:closer<span class="p">)</span>
+
+    exec <span class="s2">&quot;set ve=&quot;</span> . <span class="k">l</span>:save_ve
+    <span class="k">return</span> <span class="k">a</span>:opener
+<span class="k">endfunction</span>
+
+<span class="k">function</span><span class="p">!</span> <span class="k">s</span>:InsertStringAtCursor<span class="p">(</span>str<span class="p">)</span>
+    <span class="k">let</span> <span class="k">l</span>:line <span class="p">=</span> getline<span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)</span>
+    <span class="k">let</span> <span class="k">l</span>:column <span class="p">=</span> <span class="k">col</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)</span><span class="m">-2</span>
+
+    <span class="k">if</span> <span class="k">l</span>:column <span class="p">&lt;</span> <span class="m">0</span>
+        <span class="k">call</span> setline<span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="k">a</span>:str . <span class="k">l</span>:line<span class="p">)</span>
+    <span class="k">else</span>
+        <span class="k">call</span> setline<span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="k">l</span>:line[:<span class="k">l</span>:column] . <span class="k">a</span>:str . <span class="k">l</span>:line[<span class="k">l</span>:column<span class="p">+</span><span class="m">1</span>:]<span class="p">)</span>
+    <span class="k">endif</span>
+<span class="k">endfunction</span>
+</pre></div>
+
+
+<p>Which is a stripped down version of the auto-close functionality implemented in
+townk's auto-close plugin. And opened vim</p>
+<div class="codehilite"><pre><span class="n">vim</span> <span class="o">-</span><span class="n">u</span> <span class="n">undo</span><span class="o">-</span><span class="n">breaker</span><span class="o">-</span><span class="n">vimrc</span>
+</pre></div>
+
+
+<p>and did the test here. Boom, a dangling brace character.</p>
+<p>For all I know, its the call to <code>setline()</code> that's making all the difference.
+But I could be entirely wrong with that. I say this because that is the major
+difference between the two classes of implementations.</p>
+<h1 id="next">Next?</h1>
+<p>I use persistent-undo in vim73 and heavily depend on it. Combined with the
+<a href="http://sjl.bitbucket.org/gundo.vim">gundo</a> plugin by <a href="http://stevelosh.com">Steve Losh</a>, I get a kind of nicely visualized version
+history that is centric to every file, which is quite handy in its own right.</p>
+<p>So, if there are others who have faced this, have a fix for it, perhaps a patch
+to vim, or if there is already a bug in vim's bug database on this, let me know.</p>
+<p>Thanks for reading.</p></p>
+
+    <hr>
+
+        <h2>Comments</h2>
+    <div id=disqus_thread></div>
+<script>
+    (function() {
+        var s = document.createElement('script');
+        s.async = true;
+        s.src = 'http://sharats-me.disqus.com/embed.js';
+        document.body.appendChild(s);
+    }());
+</script>
+<noscript>Please enable JavaScript to view the <a
+        href="http://disqus.com/?ref_noscript">comments powered by Disqus</a>.
+</noscript>    </article>
+    </article>
+    <footer>
+        <br>
+        <p><a href=".">(shrikant-sharat)</a> &copy; Shrikant Sharat Kandula 2013
+        </p>
+    </footer>
+</section>
+
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>

@@ -4,7 +4,7 @@ from __future__ import unicode_literals
 
 import sys
 sys.path.append('.')
-from pelicanconf import *
+from devconf import *
 
 SITEURL = 'http://sharats.me'
 

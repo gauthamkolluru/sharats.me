@@ -34,9 +34,6 @@ watch-serve: clean html
 
 publish:
 	$(PELICAN) $(INPUTDIR) -o $(OUTPUTDIR) -s $(PUBLISHCONF) $(PELICANOPTS)
-
-github: publish
-	ghp-import $(OUTPUTDIR)
-	git push origin gh-pages
+	ghp-import -p $(OUTPUTDIR)
 
 .PHONY: html help clean watch serve watch-serve publish github

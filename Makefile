@@ -12,7 +12,7 @@ PUBLISHCONF=$(BASEDIR)/pubconf.py
 export PYTHONPATH := plugins:$(PYTHONPATH)
 
 html: clean $(OUTPUTDIR)/index.html
-	@echo 'Done'
+	@echo Done building.
 
 $(OUTPUTDIR)/%.html:
 	$(PELICAN) $(INPUTDIR) -o $(OUTPUTDIR) -s $(CONFFILE) $(PELICANOPTS)
@@ -28,7 +28,7 @@ serve: html
 
 watch-serve: clean html
 	@echo Starting up Pelican and SimpleHTTPServer
-	$(PELICAN) -r $(INPUTDIR) -o $(OUTPUTDIR) -s $(CONFFILE) $(PELICANOPTS) & \
+	@$(PELICAN) -r $(INPUTDIR) -o $(OUTPUTDIR) -s $(CONFFILE) $(PELICANOPTS) & \
 	pelican_pid="$$!"; \
 	cd $(OUTPUTDIR); \
 	python -m SimpleHTTPServer || true; \

@@ -15,7 +15,8 @@ from os.path import join
 import fnmatch
 import sys
 
-from htmlmin import minify
+from htmlmin import minify as htmlmin
+from cssmin import cssmin
 from pelican import signals
 
 
@@ -27,17 +28,20 @@ if sys.version_info[0] < 3:
 logger = getLogger(__name__)
 
 
-def minify_html(pelican):
-    """Minify all HTML files.
+def minify(pelican):
+    """Minify all HTML and CSS files.
 
     :param pelican: The Pelican instance.
     """
+
     for dirpath, _, filenames in walk(pelican.settings['OUTPUT_PATH']):
         for filename in fnmatch.filter(filenames, '*.html'):
-            create_minified_file(join(dirpath, filename))
+            minify_html_file(join(dirpath, filename))
+        for filename in fnmatch.filter(filenames, '*.css'):
+            minify_css_file(join(dirpath, filename))
 
 
-def create_minified_file(filename):
+def minify_html_file(filename):
     """Create a minified HTML file, overwriting the original.
 
     :param str filename: The file to minify.
@@ -48,11 +52,25 @@ def create_minified_file(filename):
 
     with open(filename, 'w', encoding='utf-8') as f:
         logger.debug('Minifying: %s' % filename)
-        f.write(minify(raw))
+        f.write(htmlmin(raw))
+
+
+def minify_css_file(filename):
+    """Create a minified CSS file, overwriting the original.
+
+    :param str filename: The file to minify.
+    """
+
+    with open(filename, encoding='utf-8') as f:
+        raw = f.read()
+
+    with open(filename, 'w', encoding='utf-8') as f:
+        logger.debug('Minifying: %s' % filename)
+        f.write(cssmin(raw))
 
 
 def register():
     """Run the HTML minification stuff after all articles have been generated,
     at the very end of the processing loop.
     """
-    signals.finalized.connect(minify_html)
+    signals.finalized.connect(minify)

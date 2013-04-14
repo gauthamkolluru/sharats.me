@@ -34,6 +34,8 @@ watch-serve: clean html
 
 publish:
 	$(PELICAN) $(INPUTDIR) -o $(OUTPUTDIR) -s $(PUBLISHCONF) $(PELICANOPTS)
+	touch $(OUTPUTDIR)/.nojekyll
+	echo sharats.me > $(OUTPUTDIR)/CNAME
 	ghp-import -p $(OUTPUTDIR)
 
 .PHONY: html help clean watch serve watch-serve publish github

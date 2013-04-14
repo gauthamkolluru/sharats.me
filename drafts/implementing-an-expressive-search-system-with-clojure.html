@@ -1,135 +1,25 @@
 <!doctype html>
-<html lang=en>
-<head>
-    <meta charset=utf-8>
-    <title>(shrikant-sharat)</title>
-    <meta name=author content="Shrikant Sharat Kandula">
-    <link href="../theme/local.css" rel=stylesheet>
-    <script>function script(src) {
+<html lang=en> <head><meta charset=utf-8><title>(shrikant-sharat)</title><meta name=author content="Shrikant Sharat Kandula"><link href=../theme/local.css rel=stylesheet><script>function script(src) {
         var d = document, s = d.createElement('script');
         s.async = true; s.src = src; d.body.appendChild(s);
-    }</script>
-
-<body>
-
-<header class=top>
-    <a class=brand href="..">(shrikant-sharat)</a>
-    <div style=float:right>
-                <a href="../about.html">About</a>
-                <a href="../labs.html">Labs</a>
-                <a href="../archives.html">Archives</a>
-                <a href="../tags.html">Tags</a>
-                <a href="../feeds/all.atom.xml">Atom Feed</a>
-            </div>
-</header>
-
-<section>
-    <article>
-        <article>
-    <header>
-        <h1>Implementing an expressive search system with clojure</h1>
-        <time>28 Sep, 2011</time>    </header>
-
-    <p><h2 id="backstory">Backstory</h2>
-<p>I have recently learned <a href="http://clojure.org">clojure</a> and its the first time I've been exposed to
-lisp and the code-as-data way of life. I was eager to use clojure to make an
-app, any app, a simple silly personal tool to help me out with a tedious task.</p>
-<p>One such tool I created was <a href="http://classypants.sharats.me">classypants</a>. Its a small swing based GUI tool
-that helps one to make sense out of the values of <code>PATH</code> like variables. The
-values of these variables are a list of paths of files/directories joined with
-<code>:</code> in *nix systems and <code>;</code> on windows. Have you ever seen <code>CLASSPATH</code> entries
-that have ~100 jars/directories in it? Even if these values have just 20 items,
-its very hard to make any sense out of it.</p>
-<p>Classypants is basically a pretty bare window carrying only 4 top level
-controls, one of which is an input box for searching through the entries. That
-search is what I want to talk about in this post.</p>
-<h2 id="superpowers">Superpowers</h2>
-<p>Initially, the search box was just a filter box. I type some text and the
-entries that contain that text and shown, rest hidden. This quickly became
-annoying as I wanted to search for entries with <code>jaxb</code> and <code>jar</code>, which was not
-possible with the then implementation.</p>
-<p>The implementation of the search I have today can do much more than even that.
-Its a powerful query language at work, using which we can filter entries that
-point to non-existing files, entries that point to directories that contain a
-said file and other wierdos.</p>
-<h2 id="how-is-it-done">How is it done?</h2>
-<p>I want to share how I went about evolving the search functionality. Let's talk
-about one function here,</p>
-<div class="codehilite"><pre><span class="p">(</span><span class="kd">defn </span><span class="nv">matches?</span>
-  <span class="p">[</span><span class="nv">search-str</span> <span class="nv">entry</span><span class="p">]</span>
-  <span class="p">(</span><span class="nb">-&gt; </span><span class="nv">resource</span>
-    <span class="p">(</span><span class="nf">.indexOf</span> <span class="nv">search-str</span><span class="p">)</span>
-    <span class="p">(</span><span class="nb">not= </span><span class="mi">-1</span><span class="p">)))</span>
-</pre></div>
-
-
-<p>This is the first incarnation of the search implementation. It just checks if
-the given <code>search-str</code> is present inside the <code>entry</code>.</p>
-<p>That is nice and useful. But we want more power. We want a nice minimal query
-language to describe what we want to find, and it should be easy to remember.
-Lets work on negation of search results first, thinking up the simplest of
-syntaxes,</p>
-<div class="codehilite"><pre><span class="n">not</span> <span class="n">resource</span>
-</pre></div>
-
-
-<p>should match entries that do <em>not</em> contain <code>resource</code>. This doesn't look good,
-as it might also mean to search for entries that contain <code>not</code> or <code>resource</code>. We
-need some sugar to identify the <code>not</code> part as a directive that modifies how the
-search is done. Lets try again,</p>
-<div class="codehilite"><pre><span class="o">:</span><span class="n">not</span> <span class="n">resource</span>
-</pre></div>
-
-
-<p>Ah, the <code>:</code> in from of <code>not</code> gives it the special behaviour we need. Don't worry
-too much about why the syntax isn't <code>not: resource</code> or something else, it will
-become clear in a moment, if it hasn't already. Now that we have a search
-syntax, its time to get it work. Imagine a function, <code>digest</code>, which takes a
-search string and returns a <em>function</em>, which takes an entry and tells if its a
-match or not. I suck at writing, read that again.</p>
-<p>Essentially, <code>(digest ":not resource")</code> should return a function, which more or
-less works like</p>
-<div class="codehilite"><pre><span class="p">(</span><span class="k">fn </span><span class="p">[</span><span class="nv">entry</span><span class="p">]</span>
-  <span class="p">(</span><span class="nb">not </span><span class="p">(</span><span class="nf">matches?</span> <span class="s">&quot;resource&quot;</span> <span class="nv">entry</span><span class="p">)))</span>
-</pre></div>
-
-
-<p>We see if there is a match, and <code>not</code> its result. Lets try writing the <code>digest</code>
-function,</p>
-<div class="codehilite"><pre><span class="p">(</span><span class="kd">defn </span><span class="nv">digest</span>
-  <span class="p">[</span><span class="nv">search-str</span><span class="p">]</span>
-  <span class="p">(</span><span class="nf">read-string</span> <span class="p">(</span><span class="nb">str </span><span class="s">&quot;(&quot;</span> <span class="nv">search-str</span> <span class="s">&quot;)&quot;</span><span class="p">)))</span>
-</pre></div>
-
-
-<p>What we do above is wrap the <code>search-str</code> in paranthesis and read it into a
-clojure <code>list</code>. Lets try out our function in the repl</p>
-<div class="codehilite"><pre><span class="nv">user=&gt;</span> <span class="p">(</span><span class="nf">digest</span> <span class="s">&quot;:not resource&quot;</span><span class="p">)</span>
-<span class="p">(</span><span class="ss">:not</span> <span class="nv">resource</span><span class="p">)</span>
-</pre></div>
-
-
-<p>Yep, just what we expected. Now, lets take this further ahead</p>
-<div class="codehilite"><pre><span class="p">(</span><span class="kd">defn </span><span class="nv">digest</span>
-  <span class="p">[</span><span class="nv">search-str</span><span class="p">]</span>
-  <span class="p">(</span><span class="k">let </span><span class="p">[</span><span class="nv">spec</span> <span class="p">(</span><span class="nf">read-string</span> <span class="p">(</span><span class="nb">str </span><span class="s">&quot;(&quot;</span> <span class="nv">search-str</span> <span class="s">&quot;)&quot;</span><span class="p">))]</span>
-    <span class="p">(</span><span class="nf">cond</span>
-      <span class="p">(</span><span class="nb">= </span><span class="p">(</span><span class="nb">first </span><span class="nv">spec</span><span class="p">)</span> <span class="ss">:not</span><span class="p">)</span> <span class="p">(</span><span class="k">fn </span><span class="p">[</span><span class="nv">e</span><span class="p">]</span>
-                              <span class="p">(</span><span class="nb">not </span><span class="p">(</span><span class="nf">matches?</span> <span class="p">(</span><span class="nb">nth </span><span class="nv">spec</span> <span class="mi">1</span><span class="p">)</span> <span class="nv">e</span><span class="p">))))))</span>
-</pre></div></p>
-
-    <hr>
-
-        <h2>Comments</h2>
-    <div id=disqus_thread></div>
-<script>script('http://sharats-me.disqus.com/embed.js')</script>
-<noscript>Please enable JavaScript to view comments.</noscript>    </article>
-    </article>
-    <footer>
-        <br>
-        <p><a href="..">(shrikant-sharat)</a> &copy; Shrikant Sharat Kandula 2013
-        </p>
-    </footer>
-</section>
-<script>script('//static.getclicky.com/js')</script>
-<noscript><img width=1 height=1 src="//in.getclicky.com/100601461ns.gif"></noscript>
+    }</script><body><header class=top><a class=brand href=..>(shrikant-sharat)</a><div style=float:right><a href=../about.html>About</a><a href=../labs.html>Labs</a><a href=../archives.html>Archives</a><a href=../tags.html>Tags</a><a href=../feeds/all.atom.xml>Atom Feed</a></div></header><section><article><article><header><h1>Implementing an expressive search system with clojure</h1><time>28 Sep, 2011</time></header><p><h2 id=backstory>Backstory</h2><p>I have recently learned <a href=http://clojure.org>clojure</a> and its the first time I've been exposed to lisp and the code-as-data way of life. I was eager to use clojure to make an app, any app, a simple silly personal tool to help me out with a tedious task.</p><p>One such tool I created was <a href=http://classypants.sharats.me>classypants</a>. Its a small swing based GUI tool that helps one to make sense out of the values of <code>PATH</code> like variables. The values of these variables are a list of paths of files/directories joined with <code>:</code> in *nix systems and <code>;</code> on windows. Have you ever seen <code>CLASSPATH</code> entries that have ~100 jars/directories in it? Even if these values have just 20 items, its very hard to make any sense out of it.</p><p>Classypants is basically a pretty bare window carrying only 4 top level controls, one of which is an input box for searching through the entries. That search is what I want to talk about in this post.</p><h2 id=superpowers>Superpowers</h2><p>Initially, the search box was just a filter box. I type some text and the entries that contain that text and shown, rest hidden. This quickly became annoying as I wanted to search for entries with <code>jaxb</code> and <code>jar</code>, which was not possible with the then implementation.</p><p>The implementation of the search I have today can do much more than even that. Its a powerful query language at work, using which we can filter entries that point to non-existing files, entries that point to directories that contain a said file and other wierdos.</p><h2 id=how-is-it-done>How is it done?</h2><p>I want to share how I went about evolving the search functionality. Let's talk about one function here,</p><div class=codehilite><pre><span class=p>(</span><span class=kd>defn </span><span class=nv>matches?</span>
+  <span class=p>[</span><span class=nv>search-str</span> <span class=nv>entry</span><span class=p>]</span>
+  <span class=p>(</span><span class=nb>-&gt; </span><span class=nv>resource</span>
+    <span class=p>(</span><span class=nf>.indexOf</span> <span class=nv>search-str</span><span class=p>)</span>
+    <span class=p>(</span><span class=nb>not= </span><span class=mi>-1</span><span class=p>)))</span>
+</pre></div><p>This is the first incarnation of the search implementation. It just checks if the given <code>search-str</code> is present inside the <code>entry</code>.</p><p>That is nice and useful. But we want more power. We want a nice minimal query language to describe what we want to find, and it should be easy to remember. Lets work on negation of search results first, thinking up the simplest of syntaxes,</p><div class=codehilite><pre><span class=n>not</span> <span class=n>resource</span>
+</pre></div><p>should match entries that do <em>not</em> contain <code>resource</code>. This doesn't look good, as it might also mean to search for entries that contain <code>not</code> or <code>resource</code>. We need some sugar to identify the <code>not</code> part as a directive that modifies how the search is done. Lets try again,</p><div class=codehilite><pre><span class=o>:</span><span class=n>not</span> <span class=n>resource</span>
+</pre></div><p>Ah, the <code>:</code> in from of <code>not</code> gives it the special behaviour we need. Don't worry too much about why the syntax isn't <code>not: resource</code> or something else, it will become clear in a moment, if it hasn't already. Now that we have a search syntax, its time to get it work. Imagine a function, <code>digest</code>, which takes a search string and returns a <em>function</em>, which takes an entry and tells if its a match or not. I suck at writing, read that again.</p><p>Essentially, <code>(digest ":not resource")</code> should return a function, which more or less works like</p><div class=codehilite><pre><span class=p>(</span><span class=k>fn </span><span class=p>[</span><span class=nv>entry</span><span class=p>]</span>
+  <span class=p>(</span><span class=nb>not </span><span class=p>(</span><span class=nf>matches?</span> <span class=s>&quot;resource&quot;</span> <span class=nv>entry</span><span class=p>)))</span>
+</pre></div><p>We see if there is a match, and <code>not</code> its result. Lets try writing the <code>digest</code> function,</p><div class=codehilite><pre><span class=p>(</span><span class=kd>defn </span><span class=nv>digest</span>
+  <span class=p>[</span><span class=nv>search-str</span><span class=p>]</span>
+  <span class=p>(</span><span class=nf>read-string</span> <span class=p>(</span><span class=nb>str </span><span class=s>&quot;(&quot;</span> <span class=nv>search-str</span> <span class=s>&quot;)&quot;</span><span class=p>)))</span>
+</pre></div><p>What we do above is wrap the <code>search-str</code> in paranthesis and read it into a clojure <code>list</code>. Lets try out our function in the repl</p><div class=codehilite><pre><span class=nv>user=&gt;</span> <span class=p>(</span><span class=nf>digest</span> <span class=s>&quot;:not resource&quot;</span><span class=p>)</span>
+<span class=p>(</span><span class=ss>:not</span> <span class=nv>resource</span><span class=p>)</span>
+</pre></div><p>Yep, just what we expected. Now, lets take this further ahead</p><div class=codehilite><pre><span class=p>(</span><span class=kd>defn </span><span class=nv>digest</span>
+  <span class=p>[</span><span class=nv>search-str</span><span class=p>]</span>
+  <span class=p>(</span><span class=k>let </span><span class=p>[</span><span class=nv>spec</span> <span class=p>(</span><span class=nf>read-string</span> <span class=p>(</span><span class=nb>str </span><span class=s>&quot;(&quot;</span> <span class=nv>search-str</span> <span class=s>&quot;)&quot;</span><span class=p>))]</span>
+    <span class=p>(</span><span class=nf>cond</span>
+      <span class=p>(</span><span class=nb>= </span><span class=p>(</span><span class=nb>first </span><span class=nv>spec</span><span class=p>)</span> <span class=ss>:not</span><span class=p>)</span> <span class=p>(</span><span class=k>fn </span><span class=p>[</span><span class=nv>e</span><span class=p>]</span>
+                              <span class=p>(</span><span class=nb>not </span><span class=p>(</span><span class=nf>matches?</span> <span class=p>(</span><span class=nb>nth </span><span class=nv>spec</span> <span class=mi>1</span><span class=p>)</span> <span class=nv>e</span><span class=p>))))))</span>
+</pre></div></p><hr><h2>Comments</h2><div id=disqus_thread></div><script>script('http://sharats-me.disqus.com/embed.js')</script><noscript>Please enable JavaScript to view comments.</noscript></article></article><footer><br><p><a href=..>(shrikant-sharat)</a>&copy; Shrikant Sharat Kandula 2013 </p></footer></section><script>script('//static.getclicky.com/js')</script><noscript><img width=1 height=1 src=//in.getclicky.com/100601461ns.gif></noscript>

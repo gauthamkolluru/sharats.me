@@ -1,324 +1,142 @@
 <!doctype html>
-<html lang=en>
-<head>
-    <meta charset=utf-8>
-    <title>(shrikant-sharat)</title>
-    <meta name=author content="Shrikant Sharat Kandula">
-    <link href="./theme/local.css" rel=stylesheet>
-    <script>function script(src) {
+<html lang=en> <head><meta charset=utf-8><title>(shrikant-sharat)</title><meta name=author content="Shrikant Sharat Kandula"><link href=./theme/local.css rel=stylesheet><script>function script(src) {
         var d = document, s = d.createElement('script');
         s.async = true; s.src = src; d.body.appendChild(s);
-    }</script>
+    }</script><body><header class=top><a class=brand href=.>(shrikant-sharat)</a><div style=float:right><a href=./about.html>About</a><a href=./labs.html>Labs</a><a href=./archives.html>Archives</a><a href=./tags.html>Tags</a><a href=./feeds/all.atom.xml>Atom Feed</a></div></header><section><article><article><header><h1>Serializing python-requests' Session objects for fun and profit</h1><time>18 Feb, 2012</time></header><p><h1 id=prepare>Prepare</h1><p>If you haven't checked out @kennethreitz's excellent <a href=http://docs.python-requests.org/en/latest/index.html>python-requests</a> library yet, I suggest you go do that immediately. Go on, I'll wait for you.</p><p>Had your candy? That is one of the most beatiful piece of python code I've read. And its an excellent library with a very humane API.</p><p>Recently, I have been using this library for a few of my company's internal projects and at a point I needed to serialize and save <code>Session</code> objects for later. That wasn't as straightforward as I first thought it'd be, so I am sharing my experience here.</p><p>First off, let's make a simple http server which we are going to contact with python-requests. The server should be able to handle cookie based sessions and also have basic auth, as these things are handled by python-requests' Session objects on the client side. I won't discuss the code for the server here, you can get it from <a href=https://gist.github.com/2660997#file_server.py>the gist</a>.</p><p>Once you have the server running, now for the client, lets do requests!</p><div class=codehilite><pre><span class=kn>import</span> <span class=nn>requests</span> <span class=kn>as</span> <span class=nn>req</span>
 
-<body>
+<span class=n>URL_ROOT</span> <span class=o>=</span> <span class=s>&#39;http://localhost:5050&#39;</span>
 
-<header class=top>
-    <a class=brand href=".">(shrikant-sharat)</a>
-    <div style=float:right>
-                <a href="./about.html">About</a>
-                <a href="./labs.html">Labs</a>
-                <a href="./archives.html">Archives</a>
-                <a href="./tags.html">Tags</a>
-                <a href="./feeds/all.atom.xml">Atom Feed</a>
-            </div>
-</header>
+<span class=k>def</span> <span class=nf>get_logged_in_session</span><span class=p>(</span><span class=n>name</span><span class=p>):</span>
+    <span class=n>session</span> <span class=o>=</span> <span class=n>req</span><span class=o>.</span><span class=n>session</span><span class=p>(</span><span class=n>auth</span><span class=o>=</span><span class=p>(</span><span class=s>&#39;user&#39;</span><span class=p>,</span> <span class=s>&#39;pass&#39;</span><span class=p>))</span>
 
-<section>
-    <article>
-        <article>
-    <header>
-        <h1>Serializing python-requests' Session objects for fun and profit</h1>
-        <time>18 Feb, 2012</time>    </header>
+    <span class=n>login_response</span> <span class=o>=</span> <span class=n>session</span><span class=o>.</span><span class=n>post</span><span class=p>(</span><span class=n>URL_ROOT</span> <span class=o>+</span> <span class=s>&#39;/login&#39;</span><span class=p>,</span> <span class=n>data</span><span class=o>=</span><span class=p>{</span><span class=s>&#39;name&#39;</span><span class=p>:</span> <span class=n>name</span><span class=p>})</span>
+    <span class=n>login_response</span><span class=o>.</span><span class=n>raise_for_status</span><span class=p>()</span>
 
-    <p><h1 id="prepare">Prepare</h1>
-<p>If you haven't checked out @kennethreitz's excellent <a href="http://docs.python-requests.org/en/latest/index.html">python-requests</a>
-library yet, I suggest you go do that immediately. Go on, I'll wait for you.</p>
-<p>Had your candy? That is one of the most beatiful piece of python code I've read.
-And its an excellent library with a very humane API.</p>
-<p>Recently, I have been using this library for a few of my company's internal
-projects and at a point I needed to serialize and save <code>Session</code> objects for
-later. That wasn't as straightforward as I first thought it'd be, so I am
-sharing my experience here.</p>
-<p>First off, let's make a simple http server which we are going to contact with
-python-requests. The server should be able to handle cookie based sessions and
-also have basic auth, as these things are handled by python-requests' Session
-objects on the client side. I won't discuss the code for the server here, you
-can get it from <a href="https://gist.github.com/2660997#file_server.py">the gist</a>.</p>
-<p>Once you have the server running, now for the client, lets do requests!</p>
-<div class="codehilite"><pre><span class="kn">import</span> <span class="nn">requests</span> <span class="kn">as</span> <span class="nn">req</span>
+    <span class=k>return</span> <span class=n>session</span>
 
-<span class="n">URL_ROOT</span> <span class="o">=</span> <span class="s">&#39;http://localhost:5050&#39;</span>
+<span class=k>def</span> <span class=nf>get_whoami</span><span class=p>(</span><span class=n>session</span><span class=p>):</span>
+    <span class=n>response</span> <span class=o>=</span> <span class=n>session</span><span class=o>.</span><span class=n>get</span><span class=p>(</span><span class=n>URL_ROOT</span> <span class=o>+</span> <span class=s>&#39;/whoami&#39;</span><span class=p>)</span>
+    <span class=n>response</span><span class=o>.</span><span class=n>raise_for_status</span><span class=p>()</span>
+    <span class=k>return</span> <span class=n>response</span><span class=o>.</span><span class=n>text</span>
+</pre></div><p>I defined two functions here. The <code>get_logged_in_session</code> will create a new session and login to the http server and return that session. Any subsequent requests using this sesssion will be made as if you have logged in. That's what will be tested with the <code>get_whoami</code> function, which will just return the response from <code>/whoami</code>.</p><p>Lets test this out. Make sure the <code>server.py</code> is running and in another terminal,</p><div class=codehilite><pre><span class=err>$</span> <span class=n>python</span> <span class=o>-</span><span class=n>i</span> <span class=n>client</span><span class=p>.</span><span class=n>py</span>
+<span class=o>&gt;&gt;&gt;</span> <span class=n>s</span> <span class=o>=</span> <span class=n>get_logged_in_session</span><span class=p>(</span><span class=err>&#39;</span><span class=n>sharat</span><span class=err>&#39;</span><span class=p>)</span>
+<span class=o>&gt;&gt;&gt;</span> <span class=n>get_whoami</span><span class=p>(</span><span class=n>s</span><span class=p>)</span>
+<span class=n>u</span><span class=err>&#39;</span><span class=n>You</span> <span class=n>are</span> <span class=n>sharat</span><span class=err>&#39;</span>
+<span class=o>&gt;&gt;&gt;</span> <span class=n>get_whoami</span><span class=p>(</span><span class=n>req</span><span class=p>.</span><span class=n>session</span><span class=p>(</span><span class=n>auth</span><span class=o>=</span><span class=p>(</span><span class=err>&#39;</span><span class=n>user</span><span class=err>&#39;</span><span class=p>,</span> <span class=err>&#39;</span><span class=n>pass</span><span class=err>&#39;</span><span class=p>)))</span>
+<span class=n>u</span><span class=err>&#39;</span><span class=n>You</span> <span class=n>are</span> <span class=n>a</span> <span class=n>guest</span><span class=err>&#39;</span>
+</pre></div><p>Works perfectly. If we pass it the logged in session, it gives us the username and if we pass it a new session, it gives us <code>a guest</code>.</p><p>Now, lets assume we have two functions, <code>serialize_session</code> and <code>deserialize_session</code> which do exactly what their names say. We can test them out by running a small test.py, as</p><div class=codehilite><pre><span class=kn>from</span> <span class=nn>client</span> <span class=kn>import</span> <span class=n>get_logged_in_session</span><span class=p>,</span> <span class=n>get_whoami</span>
+<span class=kn>from</span> <span class=nn>serializer</span> <span class=kn>import</span> <span class=n>deserialize_session</span><span class=p>,</span> <span class=n>serialize_session</span>
 
-<span class="k">def</span> <span class="nf">get_logged_in_session</span><span class="p">(</span><span class="n">name</span><span class="p">):</span>
-    <span class="n">session</span> <span class="o">=</span> <span class="n">req</span><span class="o">.</span><span class="n">session</span><span class="p">(</span><span class="n">auth</span><span class="o">=</span><span class="p">(</span><span class="s">&#39;user&#39;</span><span class="p">,</span> <span class="s">&#39;pass&#39;</span><span class="p">))</span>
+<span class=n>session</span> <span class=o>=</span> <span class=n>get_logged_in_session</span><span class=p>(</span><span class=s>&#39;sharat&#39;</span><span class=p>)</span>
+<span class=n>dsession</span> <span class=o>=</span> <span class=n>deserialize_session</span><span class=p>(</span><span class=n>serialize_session</span><span class=p>(</span><span class=n>session</span><span class=p>))</span>
 
-    <span class="n">login_response</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="n">URL_ROOT</span> <span class="o">+</span> <span class="s">&#39;/login&#39;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="p">{</span><span class="s">&#39;name&#39;</span><span class="p">:</span> <span class="n">name</span><span class="p">})</span>
-    <span class="n">login_response</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
+<span class=k>assert</span> <span class=n>get_whoami</span><span class=p>(</span><span class=n>session</span><span class=p>)</span> <span class=o>==</span> <span class=n>get_whoami</span><span class=p>(</span><span class=n>dsession</span><span class=p>)</span>
+<span class=k>print</span> <span class=s>&#39;Success&#39;</span>
+</pre></div><p>and a dummy serializer.py</p><div class=codehilite><pre><span class=k>def</span> <span class=nf>serialize_session</span><span class=p>(</span><span class=n>session</span><span class=p>):</span>
+    <span class=k>return</span> <span class=n>session</span>
 
-    <span class="k">return</span> <span class="n">session</span>
+<span class=k>def</span> <span class=nf>deserialize_session</span><span class=p>(</span><span class=n>session</span><span class=p>):</span>
+    <span class=k>return</span> <span class=n>session</span>
+</pre></div><p>And with that, of course, the test will not fail</p><div class=codehilite><pre><span class=err>$</span> <span class=n>python</span> <span class=n>test</span><span class=p>.</span><span class=n>py</span>
+<span class=n>Success</span>
+</pre></div><h1 id=serializing>Serializing</h1><p>Now, to implement the functions in <code>serializer.py</code>. A simple one, would be to use pickle. Lets try</p><div class=codehilite><pre><span class=kn>import</span> <span class=nn>pickle</span> <span class=kn>as</span> <span class=nn>pk</span>
 
-<span class="k">def</span> <span class="nf">get_whoami</span><span class="p">(</span><span class="n">session</span><span class="p">):</span>
-    <span class="n">response</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">URL_ROOT</span> <span class="o">+</span> <span class="s">&#39;/whoami&#39;</span><span class="p">)</span>
-    <span class="n">response</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
-    <span class="k">return</span> <span class="n">response</span><span class="o">.</span><span class="n">text</span>
-</pre></div>
+<span class=k>def</span> <span class=nf>serialize_session</span><span class=p>(</span><span class=n>session</span><span class=p>):</span>
+    <span class=k>return</span> <span class=n>pk</span><span class=o>.</span><span class=n>dumps</span><span class=p>(</span><span class=n>session</span><span class=p>)</span>
 
-
-<p>I defined two functions here. The <code>get_logged_in_session</code> will create a new
-session and login to the http server and return that session. Any subsequent
-requests using this sesssion will be made as if you have logged in. That's what
-will be tested with the <code>get_whoami</code> function, which will just return the
-response from <code>/whoami</code>.</p>
-<p>Lets test this out. Make sure the <code>server.py</code> is running and in another
-terminal,</p>
-<div class="codehilite"><pre><span class="err">$</span> <span class="n">python</span> <span class="o">-</span><span class="n">i</span> <span class="n">client</span><span class="p">.</span><span class="n">py</span>
-<span class="o">&gt;&gt;&gt;</span> <span class="n">s</span> <span class="o">=</span> <span class="n">get_logged_in_session</span><span class="p">(</span><span class="err">&#39;</span><span class="n">sharat</span><span class="err">&#39;</span><span class="p">)</span>
-<span class="o">&gt;&gt;&gt;</span> <span class="n">get_whoami</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
-<span class="n">u</span><span class="err">&#39;</span><span class="n">You</span> <span class="n">are</span> <span class="n">sharat</span><span class="err">&#39;</span>
-<span class="o">&gt;&gt;&gt;</span> <span class="n">get_whoami</span><span class="p">(</span><span class="n">req</span><span class="p">.</span><span class="n">session</span><span class="p">(</span><span class="n">auth</span><span class="o">=</span><span class="p">(</span><span class="err">&#39;</span><span class="n">user</span><span class="err">&#39;</span><span class="p">,</span> <span class="err">&#39;</span><span class="n">pass</span><span class="err">&#39;</span><span class="p">)))</span>
-<span class="n">u</span><span class="err">&#39;</span><span class="n">You</span> <span class="n">are</span> <span class="n">a</span> <span class="n">guest</span><span class="err">&#39;</span>
-</pre></div>
-
-
-<p>Works perfectly. If we pass it the logged in session, it gives us the username
-and if we pass it a new session, it gives us <code>a guest</code>.</p>
-<p>Now, lets assume we have two functions, <code>serialize_session</code> and
-<code>deserialize_session</code> which do exactly what their names say. We can test them
-out by running a small test.py, as</p>
-<div class="codehilite"><pre><span class="kn">from</span> <span class="nn">client</span> <span class="kn">import</span> <span class="n">get_logged_in_session</span><span class="p">,</span> <span class="n">get_whoami</span>
-<span class="kn">from</span> <span class="nn">serializer</span> <span class="kn">import</span> <span class="n">deserialize_session</span><span class="p">,</span> <span class="n">serialize_session</span>
-
-<span class="n">session</span> <span class="o">=</span> <span class="n">get_logged_in_session</span><span class="p">(</span><span class="s">&#39;sharat&#39;</span><span class="p">)</span>
-<span class="n">dsession</span> <span class="o">=</span> <span class="n">deserialize_session</span><span class="p">(</span><span class="n">serialize_session</span><span class="p">(</span><span class="n">session</span><span class="p">))</span>
-
-<span class="k">assert</span> <span class="n">get_whoami</span><span class="p">(</span><span class="n">session</span><span class="p">)</span> <span class="o">==</span> <span class="n">get_whoami</span><span class="p">(</span><span class="n">dsession</span><span class="p">)</span>
-<span class="k">print</span> <span class="s">&#39;Success&#39;</span>
-</pre></div>
-
-
-<p>and a dummy serializer.py</p>
-<div class="codehilite"><pre><span class="k">def</span> <span class="nf">serialize_session</span><span class="p">(</span><span class="n">session</span><span class="p">):</span>
-    <span class="k">return</span> <span class="n">session</span>
-
-<span class="k">def</span> <span class="nf">deserialize_session</span><span class="p">(</span><span class="n">session</span><span class="p">):</span>
-    <span class="k">return</span> <span class="n">session</span>
-</pre></div>
-
-
-<p>And with that, of course, the test will not fail</p>
-<div class="codehilite"><pre><span class="err">$</span> <span class="n">python</span> <span class="n">test</span><span class="p">.</span><span class="n">py</span>
-<span class="n">Success</span>
-</pre></div>
-
-
-<h1 id="serializing">Serializing</h1>
-<p>Now, to implement the functions in <code>serializer.py</code>. A simple one, would be to
-use pickle. Lets try</p>
-<div class="codehilite"><pre><span class="kn">import</span> <span class="nn">pickle</span> <span class="kn">as</span> <span class="nn">pk</span>
-
-<span class="k">def</span> <span class="nf">serialize_session</span><span class="p">(</span><span class="n">session</span><span class="p">):</span>
-    <span class="k">return</span> <span class="n">pk</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">session</span><span class="p">)</span>
-
-<span class="k">def</span> <span class="nf">deserialize_session</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
-    <span class="k">return</span> <span class="n">pk</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
-</pre></div>
-
-
-<p>If you run <code>test.py</code> now, python is going to yell at you.</p>
-<div class="codehilite"><pre><span class="err">$</span> <span class="nx">python</span> <span class="nx">test.py</span>
-<span class="nx">Traceback</span> <span class="p">(</span><span class="nx">most</span> <span class="nx">recent</span> <span class="nb">call</span> <span class="nb">last</span><span class="p">):</span>
-  <span class="nb">File</span> <span class="s2">&quot;test.py&quot;</span><span class="p">,</span> <span class="nb">line</span> <span class="mi">10</span><span class="p">,</span> <span class="k">in</span> <span class="o">&lt;</span><span class="nx">module</span><span class="o">&gt;</span>
-    <span class="n">dsession</span> <span class="o">=</span> <span class="nx">deserialize_session</span><span class="p">(</span><span class="nx">serialize_session</span><span class="p">(</span><span class="nx">session</span><span class="p">))</span>
-<span class="err">[</span> <span class="nx">...</span> <span class="cp">]</span>
+<span class=k>def</span> <span class=nf>deserialize_session</span><span class=p>(</span><span class=n>data</span><span class=p>):</span>
+    <span class=k>return</span> <span class=n>pk</span><span class=o>.</span><span class=n>loads</span><span class=p>(</span><span class=n>data</span><span class=p>)</span>
+</pre></div><p>If you run <code>test.py</code> now, python is going to yell at you.</p><div class=codehilite><pre><span class=err>$</span> <span class=nx>python</span> <span class=nx>test.py</span>
+<span class=nx>Traceback</span> <span class=p>(</span><span class=nx>most</span> <span class=nx>recent</span> <span class=nb>call</span> <span class=nb>last</span><span class=p>):</span>
+  <span class=nb>File</span> <span class=s2>&quot;test.py&quot;</span><span class=p>,</span> <span class=nb>line</span> <span class=mi>10</span><span class=p>,</span> <span class=k>in</span> <span class=o>&lt;</span><span class=nx>module</span><span class=o>&gt;</span>
+    <span class=n>dsession</span> <span class=o>=</span> <span class=nx>deserialize_session</span><span class=p>(</span><span class=nx>serialize_session</span><span class=p>(</span><span class=nx>session</span><span class=p>))</span>
+<span class=err>[</span> <span class=nx>...</span> <span class=cp>]</span>
     raise TypeError, &quot;can&#39;t pickle %s objects&quot; % base.__name__
 TypeError: can&#39;t pickle lock objects
-</pre></div>
+</pre></div><p>Oh well, it was worth a try I suppose.</p><p><strong>Update</strong>: The Session class can be made to <a href=#update-pickling-can-also-work>implement</a> the pickle protocol if you want to use pickle.</p><p>Next plan I had was to pick up attributes and data from a <code>Session</code> object, just enough to recreate this object using the Session constructor, and serialize those attributes as a json. After all, the Session's API is very easy to use, how hard can picking attributes from it be? :)</p><p>So, I dug in the <a href=https://github.com/kennethreitz/requests/blob/develop/requests/sessions.py#L50>sessions.py</a> module of python-requests library. And here's what the signature of the constructor for <code>Session</code> objects looks like</p><div class=codehilite><pre><span class=k>def</span> <span class=nf>__init__</span><span class=p>(</span><span class=bp>self</span><span class=p>,</span>
+    <span class=n>headers</span><span class=o>=</span><span class=bp>None</span><span class=p>,</span>
+    <span class=n>cookies</span><span class=o>=</span><span class=bp>None</span><span class=p>,</span>
+    <span class=n>auth</span><span class=o>=</span><span class=bp>None</span><span class=p>,</span>
+    <span class=n>timeout</span><span class=o>=</span><span class=bp>None</span><span class=p>,</span>
+    <span class=n>proxies</span><span class=o>=</span><span class=bp>None</span><span class=p>,</span>
+    <span class=n>hooks</span><span class=o>=</span><span class=bp>None</span><span class=p>,</span>
+    <span class=n>params</span><span class=o>=</span><span class=bp>None</span><span class=p>,</span>
+    <span class=n>config</span><span class=o>=</span><span class=bp>None</span><span class=p>,</span>
+    <span class=n>verify</span><span class=o>=</span><span class=bp>True</span><span class=p>):</span>
+    <span class=c># ...</span>
+</pre></div><p>So, if I pick up just these values, I should be able to recreate the session object. Sweet.</p><div class=codehilite><pre><span class=kn>import</span> <span class=nn>json</span>
+<span class=kn>import</span> <span class=nn>requests</span> <span class=kn>as</span> <span class=nn>req</span>
 
+<span class=k>def</span> <span class=nf>serialize_session</span><span class=p>(</span><span class=n>session</span><span class=p>):</span>
+    <span class=n>attrs</span> <span class=o>=</span> <span class=p>[</span><span class=s>&#39;headers&#39;</span><span class=p>,</span> <span class=s>&#39;cookies&#39;</span><span class=p>,</span> <span class=s>&#39;auth&#39;</span><span class=p>,</span> <span class=s>&#39;timeout&#39;</span><span class=p>,</span> <span class=s>&#39;proxies&#39;</span><span class=p>,</span> <span class=s>&#39;hooks&#39;</span><span class=p>,</span>
+        <span class=s>&#39;params&#39;</span><span class=p>,</span> <span class=s>&#39;config&#39;</span><span class=p>,</span> <span class=s>&#39;verify&#39;</span><span class=p>]</span>
 
-<p>Oh well, it was worth a try I suppose.</p>
-<p><strong>Update</strong>: The Session class can be made to
-<a href="#update-pickling-can-also-work">implement</a> the pickle protocol if you want to
-use pickle.</p>
-<p>Next plan I had was to pick up attributes and data from a <code>Session</code> object, just
-enough to recreate this object using the Session constructor, and serialize
-those attributes as a json. After all, the Session's API is very easy to use,
-how hard can picking attributes from it be? :)</p>
-<p>So, I dug in the <a href="https://github.com/kennethreitz/requests/blob/develop/requests/sessions.py#L50">sessions.py</a> module of python-requests library. And here's
-what the signature of the constructor for <code>Session</code> objects looks like</p>
-<div class="codehilite"><pre><span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
-    <span class="n">headers</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
-    <span class="n">cookies</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
-    <span class="n">auth</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
-    <span class="n">timeout</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
-    <span class="n">proxies</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
-    <span class="n">hooks</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
-    <span class="n">params</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
-    <span class="n">config</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
-    <span class="n">verify</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
-    <span class="c"># ...</span>
-</pre></div>
+    <span class=n>session_data</span> <span class=o>=</span> <span class=p>{}</span>
 
+    <span class=k>for</span> <span class=n>attr</span> <span class=ow>in</span> <span class=n>attrs</span><span class=p>:</span>
+        <span class=n>session_data</span><span class=p>[</span><span class=n>attr</span><span class=p>]</span> <span class=o>=</span> <span class=nb>getattr</span><span class=p>(</span><span class=n>session</span><span class=p>,</span> <span class=n>attr</span><span class=p>)</span>
 
-<p>So, if I pick up just these values, I should be able to recreate the session
-object. Sweet.</p>
-<div class="codehilite"><pre><span class="kn">import</span> <span class="nn">json</span>
-<span class="kn">import</span> <span class="nn">requests</span> <span class="kn">as</span> <span class="nn">req</span>
+    <span class=k>return</span> <span class=n>json</span><span class=o>.</span><span class=n>dumps</span><span class=p>(</span><span class=n>session_data</span><span class=p>)</span>
 
-<span class="k">def</span> <span class="nf">serialize_session</span><span class="p">(</span><span class="n">session</span><span class="p">):</span>
-    <span class="n">attrs</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;headers&#39;</span><span class="p">,</span> <span class="s">&#39;cookies&#39;</span><span class="p">,</span> <span class="s">&#39;auth&#39;</span><span class="p">,</span> <span class="s">&#39;timeout&#39;</span><span class="p">,</span> <span class="s">&#39;proxies&#39;</span><span class="p">,</span> <span class="s">&#39;hooks&#39;</span><span class="p">,</span>
-        <span class="s">&#39;params&#39;</span><span class="p">,</span> <span class="s">&#39;config&#39;</span><span class="p">,</span> <span class="s">&#39;verify&#39;</span><span class="p">]</span>
-
-    <span class="n">session_data</span> <span class="o">=</span> <span class="p">{}</span>
-
-    <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="n">attrs</span><span class="p">:</span>
-        <span class="n">session_data</span><span class="p">[</span><span class="n">attr</span><span class="p">]</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">session</span><span class="p">,</span> <span class="n">attr</span><span class="p">)</span>
-
-    <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">session_data</span><span class="p">)</span>
-
-<span class="k">def</span> <span class="nf">deserialize_session</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
-    <span class="k">return</span> <span class="n">req</span><span class="o">.</span><span class="n">session</span><span class="p">(</span><span class="o">**</span><span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">data</span><span class="p">))</span>
-</pre></div>
-
-
-<p>And let's try this out</p>
-<div class="codehilite"><pre><span class="err">$</span> <span class="nx">python</span> <span class="nx">test.py</span>
-<span class="nx">Traceback</span> <span class="p">(</span><span class="nx">most</span> <span class="nx">recent</span> <span class="nb">call</span> <span class="nb">last</span><span class="p">):</span>
-  <span class="nb">File</span> <span class="s2">&quot;test.py&quot;</span><span class="p">,</span> <span class="nb">line</span> <span class="mi">12</span><span class="p">,</span> <span class="k">in</span> <span class="o">&lt;</span><span class="nx">module</span><span class="o">&gt;</span>
-    <span class="nx">assert</span> <span class="nx">get_whoami</span><span class="p">(</span><span class="nx">session</span><span class="p">)</span> <span class="o">==</span> <span class="nx">get_whoami</span><span class="p">(</span><span class="nx">dsession</span><span class="p">)</span>
-<span class="err">[</span> <span class="nx">...</span> <span class="cp">]</span>
-<span class="cp">[</span><span class="nx">...</span><span class="cp">]</span>requests/models.py&quot;, line 447, in send
+<span class=k>def</span> <span class=nf>deserialize_session</span><span class=p>(</span><span class=n>data</span><span class=p>):</span>
+    <span class=k>return</span> <span class=n>req</span><span class=o>.</span><span class=n>session</span><span class=p>(</span><span class=o>**</span><span class=n>json</span><span class=o>.</span><span class=n>loads</span><span class=p>(</span><span class=n>data</span><span class=p>))</span>
+</pre></div><p>And let's try this out</p><div class=codehilite><pre><span class=err>$</span> <span class=nx>python</span> <span class=nx>test.py</span>
+<span class=nx>Traceback</span> <span class=p>(</span><span class=nx>most</span> <span class=nx>recent</span> <span class=nb>call</span> <span class=nb>last</span><span class=p>):</span>
+  <span class=nb>File</span> <span class=s2>&quot;test.py&quot;</span><span class=p>,</span> <span class=nb>line</span> <span class=mi>12</span><span class=p>,</span> <span class=k>in</span> <span class=o>&lt;</span><span class=nx>module</span><span class=o>&gt;</span>
+    <span class=nx>assert</span> <span class=nx>get_whoami</span><span class=p>(</span><span class=nx>session</span><span class=p>)</span> <span class=o>==</span> <span class=nx>get_whoami</span><span class=p>(</span><span class=nx>dsession</span><span class=p>)</span>
+<span class=err>[</span> <span class=nx>...</span> <span class=cp>]</span>
+<span class=cp>[</span><span class=nx>...</span><span class=cp>]</span>requests/models.py&quot;, line 447, in send
     r = self.auth(self)
 TypeError: &#39;list&#39; object is not callable
-</pre></div>
+</pre></div><p>Okay, that error message is very wierd. Why would anyone <em>call</em> a list object?</p><p>Go dig in the <a href=https://github.com/kennethreitz/requests/blob/develop/requests/models.py#L447>models.py</a> module. See this</p><div class=codehilite><pre><span class=p>[</span> <span class=o>...</span> <span class=p>]</span>
+<span class=k>if</span> <span class=nb>isinstance</span><span class=p>(</span><span class=bp>self</span><span class=o>.</span><span class=n>auth</span><span class=p>,</span> <span class=nb>tuple</span><span class=p>)</span> <span class=ow>and</span> <span class=nb>len</span><span class=p>(</span><span class=bp>self</span><span class=o>.</span><span class=n>auth</span><span class=p>)</span> <span class=o>==</span> <span class=mi>2</span><span class=p>:</span>
+    <span class=c># special-case basic HTTP auth</span>
+    <span class=bp>self</span><span class=o>.</span><span class=n>auth</span> <span class=o>=</span> <span class=n>HTTPBasicAuth</span><span class=p>(</span><span class=o>*</span><span class=bp>self</span><span class=o>.</span><span class=n>auth</span><span class=p>)</span>
 
+<span class=c># Allow auth to make its changes.</span>
+<span class=n>r</span> <span class=o>=</span> <span class=bp>self</span><span class=o>.</span><span class=n>auth</span><span class=p>(</span><span class=bp>self</span><span class=p>)</span>
+<span class=p>[</span> <span class=o>...</span> <span class=p>]</span>
+</pre></div><p>There. Its not a list that's being called. Not directly at least. The problem here is that the <code>auth</code> we are passing to <code>session()</code> is not a tuple. Duh! While I like it that <code>auth</code> is restricted to be a tuple, I wish there was a better error message for when <code>auth</code> is a list instead of a tuple. I personally wouldn't want it to accept a <code>list</code> for <code>auth</code> though.</p><p>So, what went wrong? <code>json</code> does not differentiate between a tuple and a list. It only does lists. So, when serializing and deserializing, the <code>auth</code> tuple is turned to a <code>list</code>. Lets turn it back</p><div class=codehilite><pre><span class=k>def</span> <span class=nf>deserialize_session</span><span class=p>(</span><span class=n>data</span><span class=p>):</span>
+    <span class=n>session_data</span> <span class=o>=</span> <span class=n>json</span><span class=o>.</span><span class=n>loads</span><span class=p>(</span><span class=n>data</span><span class=p>)</span>
 
-<p>Okay, that error message is very wierd. Why would anyone <em>call</em> a list object?</p>
-<p>Go dig in the <a href="https://github.com/kennethreitz/requests/blob/develop/requests/models.py#L447">models.py</a> module. See this</p>
-<div class="codehilite"><pre><span class="p">[</span> <span class="o">...</span> <span class="p">]</span>
-<span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">auth</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">auth</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
-    <span class="c"># special-case basic HTTP auth</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">auth</span> <span class="o">=</span> <span class="n">HTTPBasicAuth</span><span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">auth</span><span class="p">)</span>
+    <span class=k>if</span> <span class=s>&#39;auth&#39;</span> <span class=ow>in</span> <span class=n>session_data</span><span class=p>:</span>
+        <span class=n>session_data</span><span class=p>[</span><span class=s>&#39;auth&#39;</span><span class=p>]</span> <span class=o>=</span> <span class=nb>tuple</span><span class=p>(</span><span class=n>session_data</span><span class=p>[</span><span class=s>&#39;auth&#39;</span><span class=p>])</span>
 
-<span class="c"># Allow auth to make its changes.</span>
-<span class="n">r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">auth</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
-<span class="p">[</span> <span class="o">...</span> <span class="p">]</span>
-</pre></div>
-
-
-<p>There. Its not a list that's being called. Not directly at least. The problem
-here is that the <code>auth</code> we are passing to <code>session()</code> is not a tuple. Duh!
-While I like it that <code>auth</code> is restricted to be a tuple, I wish there was a
-better error message for when <code>auth</code> is a list instead of a tuple. I personally
-wouldn't want it to accept a <code>list</code> for <code>auth</code> though.</p>
-<p>So, what went wrong? <code>json</code> does not differentiate between a tuple and a list.
-It only does lists. So, when serializing and deserializing, the <code>auth</code> tuple is
-turned to a <code>list</code>. Lets turn it back</p>
-<div class="codehilite"><pre><span class="k">def</span> <span class="nf">deserialize_session</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
-    <span class="n">session_data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
-
-    <span class="k">if</span> <span class="s">&#39;auth&#39;</span> <span class="ow">in</span> <span class="n">session_data</span><span class="p">:</span>
-        <span class="n">session_data</span><span class="p">[</span><span class="s">&#39;auth&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">session_data</span><span class="p">[</span><span class="s">&#39;auth&#39;</span><span class="p">])</span>
-
-    <span class="k">return</span> <span class="n">req</span><span class="o">.</span><span class="n">session</span><span class="p">(</span><span class="o">**</span><span class="n">session_data</span><span class="p">)</span>
-</pre></div>
-
-
-<p>And</p>
-<div class="codehilite"><pre><span class="err">$</span> <span class="nx">python</span> <span class="nx">test.py</span>
-<span class="nx">Traceback</span> <span class="p">(</span><span class="nx">most</span> <span class="nx">recent</span> <span class="nb">call</span> <span class="nb">last</span><span class="p">):</span>
-  <span class="nb">File</span> <span class="s2">&quot;test.py&quot;</span><span class="p">,</span> <span class="nb">line</span> <span class="mi">12</span><span class="p">,</span> <span class="k">in</span> <span class="o">&lt;</span><span class="nx">module</span><span class="o">&gt;</span>
-    <span class="nx">assert</span> <span class="nx">get_whoami</span><span class="p">(</span><span class="nx">session</span><span class="p">)</span> <span class="o">==</span> <span class="nx">get_whoami</span><span class="p">(</span><span class="nx">dsession</span><span class="p">)</span>
-<span class="err">[</span> <span class="nx">...</span> <span class="cp">]</span>
+    <span class=k>return</span> <span class=n>req</span><span class=o>.</span><span class=n>session</span><span class=p>(</span><span class=o>**</span><span class=n>session_data</span><span class=p>)</span>
+</pre></div><p>And</p><div class=codehilite><pre><span class=err>$</span> <span class=nx>python</span> <span class=nx>test.py</span>
+<span class=nx>Traceback</span> <span class=p>(</span><span class=nx>most</span> <span class=nx>recent</span> <span class=nb>call</span> <span class=nb>last</span><span class=p>):</span>
+  <span class=nb>File</span> <span class=s2>&quot;test.py&quot;</span><span class=p>,</span> <span class=nb>line</span> <span class=mi>12</span><span class=p>,</span> <span class=k>in</span> <span class=o>&lt;</span><span class=nx>module</span><span class=o>&gt;</span>
+    <span class=nx>assert</span> <span class=nx>get_whoami</span><span class=p>(</span><span class=nx>session</span><span class=p>)</span> <span class=o>==</span> <span class=nx>get_whoami</span><span class=p>(</span><span class=nx>dsession</span><span class=p>)</span>
+<span class=err>[</span> <span class=nx>...</span> <span class=cp>]</span>
   File &quot;/usr/lib/python2.7/string.py&quot;, line 493, in translate
     return s.translate(table, deletions)
 TypeError: translate() takes exactly one argument (2 given)
-</pre></div>
+</pre></div><p>Wait. What? Now we have an error from stdlib? This just keeps getting better and better. If this looks like something that can frustrate you, go get some coffee :)</p><p>If you look at the complete stack trace, the second file from bottom,</p><div class=codehilite><pre>  <span class=n>File</span> <span class=s>&quot;[...]site-packages/requests/packages/oreos/monkeys.py&quot;</span><span class=p>,</span> <span class=n>line</span> <span class=mi>470</span><span class=p>,</span> <span class=n>in</span> <span class=n>set</span>
+    <span class=k>if</span> <span class=s>&quot;&quot;</span> <span class=o>!=</span> <span class=n>translate</span><span class=p>(</span><span class=n>key</span><span class=p>,</span> <span class=n>idmap</span><span class=p>,</span> <span class=n>LegalChars</span><span class=p>)</span><span class=o>:</span>
+</pre></div><p>This thing seems to be calling the <code>translate</code> method incorrectly. With a bit of debugging and yelling at my monitor, I found out the problem and for a moment, lost my grip on reality.</p><p><code>str.translate</code> takes 2 arguments, but <code>unicode.translate</code> takes only 1. I have no idea why this is done this way but I sure as hell didn't enjoy it. The code in <code>oreos/monkeys.py</code> assumes that the <code>key</code> is a <code>str</code>. However, what <code>json.loads</code> gives you, is unicode stuff. So, we need to convert just the parts in the deserialized dict we get from <code>json.loads</code> which are being used by the <code>oreos/monkeys.py</code>, from <code>unicode</code> to <code>str</code>.</p><p>Reading a bit more code around the oreos library, it didn't take long to figure out that those were the keys in the <code>cookies</code> dict. Lo</p><div class=codehilite><pre><span class=k>def</span> <span class=nf>deserialize_session</span><span class=p>(</span><span class=n>data</span><span class=p>):</span>
+    <span class=n>session_data</span> <span class=o>=</span> <span class=n>json</span><span class=o>.</span><span class=n>loads</span><span class=p>(</span><span class=n>data</span><span class=p>)</span>
 
+    <span class=k>if</span> <span class=s>&#39;auth&#39;</span> <span class=ow>in</span> <span class=n>session_data</span><span class=p>:</span>
+        <span class=n>session_data</span><span class=p>[</span><span class=s>&#39;auth&#39;</span><span class=p>]</span> <span class=o>=</span> <span class=nb>tuple</span><span class=p>(</span><span class=n>session_data</span><span class=p>[</span><span class=s>&#39;auth&#39;</span><span class=p>])</span>
 
-<p>Wait. What? Now we have an error from stdlib? This just keeps getting better and
-better. If this looks like something that can frustrate you, go get some coffee
-:)</p>
-<p>If you look at the complete stack trace, the second file from bottom,</p>
-<div class="codehilite"><pre>  <span class="n">File</span> <span class="s">&quot;[...]site-packages/requests/packages/oreos/monkeys.py&quot;</span><span class="p">,</span> <span class="n">line</span> <span class="mi">470</span><span class="p">,</span> <span class="n">in</span> <span class="n">set</span>
-    <span class="k">if</span> <span class="s">&quot;&quot;</span> <span class="o">!=</span> <span class="n">translate</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">idmap</span><span class="p">,</span> <span class="n">LegalChars</span><span class="p">)</span><span class="o">:</span>
-</pre></div>
+    <span class=k>if</span> <span class=s>&#39;cookies&#39;</span> <span class=ow>in</span> <span class=n>session_data</span><span class=p>:</span>
+        <span class=n>session_data</span><span class=p>[</span><span class=s>&#39;cookies&#39;</span><span class=p>]</span> <span class=o>=</span> <span class=nb>dict</span><span class=p>((</span><span class=n>key</span><span class=o>.</span><span class=n>encode</span><span class=p>(),</span> <span class=n>val</span><span class=p>)</span> <span class=k>for</span> <span class=n>key</span><span class=p>,</span> <span class=n>val</span> <span class=ow>in</span>
+                <span class=n>session_data</span><span class=p>[</span><span class=s>&#39;cookies&#39;</span><span class=p>]</span><span class=o>.</span><span class=n>items</span><span class=p>())</span>
 
+    <span class=k>return</span> <span class=n>req</span><span class=o>.</span><span class=n>session</span><span class=p>(</span><span class=o>**</span><span class=n>session_data</span><span class=p>)</span>
+</pre></div><p>And so</p><div class=codehilite><pre><span class=err>$</span> <span class=n>python</span> <span class=n>test</span><span class=p>.</span><span class=n>py</span>
+<span class=n>Success</span>
+</pre></div><p><strong>!</strong></p><p>All the code is on a <a href=https://gist.github.com/2660997>gist</a>.</p><h1 id=update-pickling-can-also-work>Update: Pickling can also work</h1><p>As <em>Daslch</em> pointed out in his <a href=http://www.reddit.com/r/Python/comments/pv1lf/serializing_pythonrequests_session_objects_for/c3sh5bb>comment</a> on reddit, by implementing the pickle protocol on the Session class, we can get pickling to work. From the <a href=http://docs.python.org/library/pickle.html#object.__getstate__>documentation</a>, we need two methods, <code>__getstate__</code> and <code>__setstate__</code>.</p><p>Adding those methods as follows to <code>sessions.Session</code> class</p><div class=codehilite><pre><span class=k>def</span> <span class=nf>__getstate__</span><span class=p>(</span><span class=bp>self</span><span class=p>):</span>
+    <span class=n>attrs</span> <span class=o>=</span> <span class=p>[</span><span class=s>&#39;headers&#39;</span><span class=p>,</span> <span class=s>&#39;cookies&#39;</span><span class=p>,</span> <span class=s>&#39;auth&#39;</span><span class=p>,</span> <span class=s>&#39;timeout&#39;</span><span class=p>,</span> <span class=s>&#39;proxies&#39;</span><span class=p>,</span> <span class=s>&#39;hooks&#39;</span><span class=p>,</span>
+        <span class=s>&#39;params&#39;</span><span class=p>,</span> <span class=s>&#39;config&#39;</span><span class=p>,</span> <span class=s>&#39;verify&#39;</span><span class=p>]</span>
+    <span class=k>return</span> <span class=nb>dict</span><span class=p>((</span><span class=n>attr</span><span class=p>,</span> <span class=nb>getattr</span><span class=p>(</span><span class=bp>self</span><span class=p>,</span> <span class=n>attr</span><span class=p>))</span> <span class=k>for</span> <span class=n>attr</span> <span class=ow>in</span> <span class=n>attrs</span><span class=p>)</span>
 
-<p>This thing seems to be calling the <code>translate</code> method incorrectly. With a bit of
-debugging and yelling at my monitor, I found out the problem and for a moment,
-lost my grip on reality.</p>
-<p><code>str.translate</code> takes 2 arguments, but <code>unicode.translate</code> takes only 1. I have
-no idea why this is done this way but I sure as hell didn't enjoy it. The code
-in <code>oreos/monkeys.py</code> assumes that the <code>key</code> is a <code>str</code>. However, what
-<code>json.loads</code> gives you, is unicode stuff. So, we need to convert just the parts
-in the deserialized dict we get from <code>json.loads</code> which are being used by the
-<code>oreos/monkeys.py</code>, from <code>unicode</code> to <code>str</code>.</p>
-<p>Reading a bit more code around the oreos library, it didn't take long to figure
-out that those were the keys in the <code>cookies</code> dict. Lo</p>
-<div class="codehilite"><pre><span class="k">def</span> <span class="nf">deserialize_session</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
-    <span class="n">session_data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+<span class=k>def</span> <span class=nf>__setstate__</span><span class=p>(</span><span class=bp>self</span><span class=p>,</span> <span class=n>state</span><span class=p>):</span>
+    <span class=k>for</span> <span class=n>name</span><span class=p>,</span> <span class=n>value</span> <span class=ow>in</span> <span class=n>state</span><span class=o>.</span><span class=n>items</span><span class=p>():</span>
+        <span class=nb>setattr</span><span class=p>(</span><span class=bp>self</span><span class=p>,</span> <span class=n>name</span><span class=p>,</span> <span class=n>value</span><span class=p>)</span>
 
-    <span class="k">if</span> <span class="s">&#39;auth&#39;</span> <span class="ow">in</span> <span class="n">session_data</span><span class="p">:</span>
-        <span class="n">session_data</span><span class="p">[</span><span class="s">&#39;auth&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">session_data</span><span class="p">[</span><span class="s">&#39;auth&#39;</span><span class="p">])</span>
-
-    <span class="k">if</span> <span class="s">&#39;cookies&#39;</span> <span class="ow">in</span> <span class="n">session_data</span><span class="p">:</span>
-        <span class="n">session_data</span><span class="p">[</span><span class="s">&#39;cookies&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">((</span><span class="n">key</span><span class="o">.</span><span class="n">encode</span><span class="p">(),</span> <span class="n">val</span><span class="p">)</span> <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span>
-                <span class="n">session_data</span><span class="p">[</span><span class="s">&#39;cookies&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
-
-    <span class="k">return</span> <span class="n">req</span><span class="o">.</span><span class="n">session</span><span class="p">(</span><span class="o">**</span><span class="n">session_data</span><span class="p">)</span>
-</pre></div>
-
-
-<p>And so</p>
-<div class="codehilite"><pre><span class="err">$</span> <span class="n">python</span> <span class="n">test</span><span class="p">.</span><span class="n">py</span>
-<span class="n">Success</span>
-</pre></div>
-
-
-<p><strong>!</strong></p>
-<p>All the code is on a <a href="https://gist.github.com/2660997">gist</a>.</p>
-<h1 id="update-pickling-can-also-work">Update: Pickling can also work</h1>
-<p>As <em>Daslch</em> pointed out in his <a href="http://www.reddit.com/r/Python/comments/pv1lf/serializing_pythonrequests_session_objects_for/c3sh5bb">comment</a> on reddit, by implementing the pickle
-protocol on the Session class, we can get pickling to work. From the
-<a href="http://docs.python.org/library/pickle.html#object.__getstate__">documentation</a>, we need two methods, <code>__getstate__</code> and <code>__setstate__</code>.</p>
-<p>Adding those methods as follows to <code>sessions.Session</code> class</p>
-<div class="codehilite"><pre><span class="k">def</span> <span class="nf">__getstate__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-    <span class="n">attrs</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;headers&#39;</span><span class="p">,</span> <span class="s">&#39;cookies&#39;</span><span class="p">,</span> <span class="s">&#39;auth&#39;</span><span class="p">,</span> <span class="s">&#39;timeout&#39;</span><span class="p">,</span> <span class="s">&#39;proxies&#39;</span><span class="p">,</span> <span class="s">&#39;hooks&#39;</span><span class="p">,</span>
-        <span class="s">&#39;params&#39;</span><span class="p">,</span> <span class="s">&#39;config&#39;</span><span class="p">,</span> <span class="s">&#39;verify&#39;</span><span class="p">]</span>
-    <span class="k">return</span> <span class="nb">dict</span><span class="p">((</span><span class="n">attr</span><span class="p">,</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">))</span> <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="n">attrs</span><span class="p">)</span>
-
-<span class="k">def</span> <span class="nf">__setstate__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
-    <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">state</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-        <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
-
-    <span class="bp">self</span><span class="o">.</span><span class="n">poolmanager</span> <span class="o">=</span> <span class="n">PoolManager</span><span class="p">(</span>
-        <span class="n">num_pools</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;pool_connections&#39;</span><span class="p">),</span>
-        <span class="n">maxsize</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;pool_maxsize&#39;</span><span class="p">)</span>
-    <span class="p">)</span>
-</pre></div>
-
-
-<p>with this as the version of <code>serializer.py</code> that uses pickle, we do get a
-<code>Success</code>.</p>
-<p>The creation of new poolmanager in <code>__setstate__</code> is a piece of code copied from
-<code>__init__</code> of the same class. This should probably be turned to a method to
-avoid code repetition.</p>
-<p><strong>Update 2</strong>: Created an <a href="https://github.com/kennethreitz/requests/issues/439">issue</a> about this.</p>
-<p><strong>Update 3</strong>: This has been merged and Session objects are pickleable as of
-version 0.10.3. See <a href="https://github.com/kennethreitz/requests/blob/develop/HISTORY.rst">requests history</a>.</p></p>
-
-    <hr>
-
-        <h2>Comments</h2>
-    <div id=disqus_thread></div>
-<script>script('http://sharats-me.disqus.com/embed.js')</script>
-<noscript>Please enable JavaScript to view comments.</noscript>    </article>
-    </article>
-    <footer>
-        <br>
-        <p><a href=".">(shrikant-sharat)</a> &copy; Shrikant Sharat Kandula 2013
-        </p>
-    </footer>
-</section>
-<script>script('//static.getclicky.com/js')</script>
-<noscript><img width=1 height=1 src="//in.getclicky.com/100601461ns.gif"></noscript>
+    <span class=bp>self</span><span class=o>.</span><span class=n>poolmanager</span> <span class=o>=</span> <span class=n>PoolManager</span><span class=p>(</span>
+        <span class=n>num_pools</span><span class=o>=</span><span class=bp>self</span><span class=o>.</span><span class=n>config</span><span class=o>.</span><span class=n>get</span><span class=p>(</span><span class=s>&#39;pool_connections&#39;</span><span class=p>),</span>
+        <span class=n>maxsize</span><span class=o>=</span><span class=bp>self</span><span class=o>.</span><span class=n>config</span><span class=o>.</span><span class=n>get</span><span class=p>(</span><span class=s>&#39;pool_maxsize&#39;</span><span class=p>)</span>
+    <span class=p>)</span>
+</pre></div><p>with this as the version of <code>serializer.py</code> that uses pickle, we do get a <code>Success</code>.</p><p>The creation of new poolmanager in <code>__setstate__</code> is a piece of code copied from <code>__init__</code> of the same class. This should probably be turned to a method to avoid code repetition.</p><p><strong>Update 2</strong>: Created an <a href=https://github.com/kennethreitz/requests/issues/439>issue</a> about this.</p><p><strong>Update 3</strong>: This has been merged and Session objects are pickleable as of version 0.10.3. See <a href=https://github.com/kennethreitz/requests/blob/develop/HISTORY.rst>requests history</a>.</p></p><hr><h2>Comments</h2><div id=disqus_thread></div><script>script('http://sharats-me.disqus.com/embed.js')</script><noscript>Please enable JavaScript to view comments.</noscript></article></article><footer><br><p><a href=.>(shrikant-sharat)</a>&copy; Shrikant Sharat Kandula 2013 </p></footer></section><script>script('//static.getclicky.com/js')</script><noscript><img width=1 height=1 src=//in.getclicky.com/100601461ns.gif></noscript>

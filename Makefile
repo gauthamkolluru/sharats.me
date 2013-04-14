@@ -9,6 +9,8 @@ OUTPUTDIR=$(BASEDIR)/output
 CONFFILE=$(BASEDIR)/devconf.py
 PUBLISHCONF=$(BASEDIR)/pubconf.py
 
+export PYTHONPATH := plugins:$(PYTHONPATH)
+
 html: clean $(OUTPUTDIR)/index.html
 	@echo 'Done'
 

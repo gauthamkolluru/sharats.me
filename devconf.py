@@ -27,6 +27,8 @@ DATE_FORMATS = {
 # Markdown extensions at http://pythonhosted.org/Markdown/extensions/index.html
 MD_EXTENSIONS = 'extra codehilite toc sane_lists'.split()
 
+PLUGINS = 'minify'.split()
+
 DISQUS_SITENAME = 'sharats-me'
 
 DEFAULT_LANG = 'en'
@@ -34,7 +36,9 @@ DEFAULT_LANG = 'en'
 DEFAULT_PAGINATION = False
 
 THEME = 'theme'
-TYPOGRIFY = True
+
+# TODO: Typogrify depends on Django. Cut it and then use it.
+# TYPOGRIFY = True
 
 MENUITEMS = [
     ('About', 'about.html'),

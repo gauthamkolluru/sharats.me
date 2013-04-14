@@ -34,6 +34,7 @@ DEFAULT_LANG = 'en'
 DEFAULT_PAGINATION = False
 
 THEME = 'theme'
+TYPOGRIFY = True
 
 MENUITEMS = [
     ('About', 'about.html'),

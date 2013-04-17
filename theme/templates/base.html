@@ -9,6 +9,7 @@
         var d = document, s = d.createElement('script');
         s.async = true; s.src = src; d.body.appendChild(s);
     }</script>
+    {% macro script(url) %}<script>script('{{ url }}')</script>{% endmacro %}
 
 <body>
 
@@ -31,4 +32,6 @@
         </p>
     </footer>
 </section>
+
 {% include "analytics.html" %}
+<script async src="{{ SITEURL }}/theme/main.js"></script>

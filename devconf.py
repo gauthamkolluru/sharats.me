@@ -40,6 +40,8 @@ THEME = 'theme'
 # TODO: Typogrify depends on Django. Cut it and then use it.
 # TYPOGRIFY = True
 
+TWITTER_USERNAME = 'sharat87'
+
 MENUITEMS = [
     ('About', 'about.html'),
     ('Labs', 'labs.html'),

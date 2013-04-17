@@ -33,8 +33,9 @@ function setupRedditBtn(el) {
     if (window.reddit_newwindow)
         html += '&newwindow=' + encodeURIComponent(window.reddit_newwindow);
 
-    html += '" height=22 width=120 scrolling=no frameborder=0></iframe>';
-    el.innerHTML = html;
+    html += '" height=20 width=120 scrolling=no frameborder=0></iframe>';
+    el.insertAdjacentHTML('afterend', html);
+    el.parentNode.removeChild(el);
 }
 
 main();

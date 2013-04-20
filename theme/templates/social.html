@@ -8,4 +8,16 @@
 
     {% if article.reddit %}<div class=reddit-btn></div>{% endif %}
 
+    {% if article.flattr %}
+    <a href id=flattr-btn class=FlattrButton title="{{ article.title }}" lang=en
+        data-flattr-uid=sharat87 data-flattr-category=text
+        data-flattr-button=compact data-flattr-tags=python,programming,tutorial>
+        {{ article.summary | striptags }}</a>
+    <script>
+        document.getElementById('flattr-btn').href = window.location;
+        script('//api.flattr.com/js/0.6/load.js?' +
+            'mode=auto&uid=gargamel&language=sv_SE&category=text');
+    </script>
+    {% endif %}
+
 </div>
